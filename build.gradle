@@ -1,0 +1,40 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+apply plugin: 'java'
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+
+def starmadeDirectory = project.property("starmade_root")
+def modName = project.property("mod_name")
+group = project.property('mod_org_id')
+version = project.property('mod_version')
+mainClassName = group + modName
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation(fileTree(dir: ("lib"), include: "*.jar"))
+    implementation(files(starmadeDirectory + "StarMade.jar"))
+    implementation(fileTree(dir: (starmadeDirectory + "lib"), include: "*.jar"))
+}
+
+compileJava.options.encoding = 'UTF-8'
+
+jar {
+    duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+    destinationDirectory.set(file(starmadeDirectory + "mods"))
+    archiveFileName = modName + 'v' + version + '.jar'
+    manifest.attributes('Main-Class': mainClassName)
+    from {
+        configurations.runtimeClasspath.collect {
+            if(!it.getPath().contains("StarMade") && it.getName().endsWith(".jar")) {
+                it.isDirectory() ? it : zipTree(it)
+            } else return null
+        }
+    }
+}
