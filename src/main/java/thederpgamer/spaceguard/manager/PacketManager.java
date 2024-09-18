@@ -1,7 +1,7 @@
-package username.modtemplate.manager;
+package thederpgamer.spaceguard.manager;
 
 import api.network.packets.PacketUtil;
-import username.modtemplate.network.client.ExampleClientPacket;
+import thederpgamer.spaceguard.networking.client.ExampleClientPacket;
 
 public class PacketManager {
 

@@ -1,17 +1,17 @@
 {
-  "name": "ModTemplate",
-  "author": "Username",
-  "description": "Template for making StarMade mods.",
+  "name": "SpaceGuard",
+  "author": "TheDerpGamer",
+  "description": "Security and Anti-Cheat for StarMade Servers.",
   "version": "1.0.0",
   "starmade_version": "0.203.164",
   "client_mod": false,
   "server_mod": false,
-  "main_class": "username.modtemplate.ModTemplate",
+  "main_class": "thederpgamer.spaceguard.SpaceGuard",
   "smd_resource_id": 9999,
   "dependencies": [
     -1
   ],
-  "core_mod": false,
-  "requires_class_resize": false,
-  "hard_load_all_classes": false
+  "core_mod": true,
+  "requires_class_resize": true,
+  "hard_load_all_classes": true
 }

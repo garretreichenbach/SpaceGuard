@@ -1,7 +1,7 @@
-package username.modtemplate.utils;
+package thederpgamer.spaceguard.utils;
 
 import api.common.GameCommon;
-import username.modtemplate.ModTemplate;
+import thederpgamer.spaceguard.SpaceGuard;
 
 public class DataUtils {
 
@@ -10,6 +10,6 @@ public class DataUtils {
 	}
 
 	public static String getResourcesPath() {
-		return ModTemplate.getInstance().getSkeleton().getResourcesFolder().getPath().replace('\\', '/');
+		return SpaceGuard.getInstance().getSkeleton().getResourcesFolder().getPath().replace('\\', '/');
 	}
 }

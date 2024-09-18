@@ -1,4 +1,4 @@
-package username.modtemplate.utils;
+package thederpgamer.spaceguard.utils;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;

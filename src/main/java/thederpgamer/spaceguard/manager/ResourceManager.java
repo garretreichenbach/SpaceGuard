@@ -1,11 +1,11 @@
-package username.modtemplate.manager;
+package thederpgamer.spaceguard.manager;
 
 import api.utils.textures.StarLoaderTexture;
 import org.schema.schine.graphicsengine.core.ResourceException;
 import org.schema.schine.graphicsengine.forms.Mesh;
 import org.schema.schine.graphicsengine.forms.Sprite;
 import org.schema.schine.resource.ResourceLoader;
-import username.modtemplate.ModTemplate;
+import thederpgamer.spaceguard.SpaceGuard;
 
 import javax.imageio.ImageIO;
 import java.io.IOException;
@@ -29,7 +29,7 @@ public class ResourceManager {
 	private static final HashMap<String, Sprite> spriteMap = new HashMap<>();
 	private static final HashMap<String, Mesh> modelMap = new HashMap<>();
 
-	public static void loadResources(final ModTemplate instance, final ResourceLoader loader) {
+	public static void loadResources(final SpaceGuard instance, final ResourceLoader loader) {
 		StarLoaderTexture.runOnGraphicsThread(new Runnable() {
 			@Override
 			public void run() {

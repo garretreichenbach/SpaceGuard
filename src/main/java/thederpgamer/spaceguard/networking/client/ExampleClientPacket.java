@@ -1,10 +1,10 @@
-package username.modtemplate.network.client;
+package thederpgamer.spaceguard.networking.client;
 
 import api.network.Packet;
 import api.network.PacketReadBuffer;
 import api.network.PacketWriteBuffer;
 import org.schema.game.common.data.player.PlayerState;
-import username.modtemplate.ModTemplate;
+import thederpgamer.spaceguard.SpaceGuard;
 
 import java.io.IOException;
 
@@ -37,6 +37,6 @@ public class ExampleClientPacket extends Packet {
 
 	@Override
 	public void processPacketOnServer(PlayerState playerState) {
-		ModTemplate.logInfo("Received packet from " + playerState.getName() + " with message: " + message);
+		SpaceGuard.getInstance().logInfo("Received packet from " + playerState.getName() + " with message: " + message);
 	}
 }

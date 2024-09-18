@@ -1,16 +1,16 @@
-package username.modtemplate.manager;
+package thederpgamer.spaceguard.manager;
 
 import api.mod.config.FileConfiguration;
-import username.modtemplate.ModTemplate;
+import thederpgamer.spaceguard.SpaceGuard;
 
 public class ConfigManager {
 
 	private static FileConfiguration mainConfig;
 	private static final String[] defaultMainConfig = {
-			"debug-mode: false"
+			"vpn_checker_api_key: <API_KEY>"
 	};
 
-	public static void initialize(ModTemplate instance) {
+	public static void initialize(SpaceGuard instance) {
 		mainConfig = instance.getConfig("config");
 		mainConfig.saveDefault(defaultMainConfig);
 	}
