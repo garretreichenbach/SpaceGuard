@@ -26,38 +26,25 @@ mainClassName = group + modName
 
 repositories {
 	mavenCentral()
-	maven { url 'https://maven.guardsquare.com' }
 }
 
 dependencies {
 	implementation(files(starmadeDirectory + "StarMade.jar"))
 	implementation(fileTree(dir: (starmadeDirectory + "lib"), include: "*.jar"))
-	implementation('com.guardsquare:proguard-gradle:7.5.0')
 	implementation('com.github.oshi:oshi-core:5.7.5')
 }
 
 compileJava.options.encoding = 'UTF-8'
 
 jar {
+	destinationDirectory.set(file(starmadeDirectory + "mods"))
 	duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
 	archiveFileName = modName + 'v' + version + '.jar'
 	manifest.attributes('Main-Class': mainClassName)
 	from {
 		configurations.runtimeClasspath.collect {
-			if (!it.getPath().contains("StarMade") && it.getName().endsWith(".jar")) {
-				it.isDirectory() ? it : zipTree(it)
-			} else return null
+			if(!it.getPath().contains("StarMade") && it.getName().endsWith(".jar")) it.isDirectory() ? it : zipTree(it)
+			else return null
 		}
 	}
-}
-
-tasks.register('obfuscate', proguard.gradle.ProGuardTask) {
-	configuration file('proguard.pro')
-	injars(tasks.named('jar', Jar).flatMap { it.archiveFile })
-	if(System.getProperty('java.version').startsWith('1.')) libraryjars "${System.getProperty('java.home')}/lib/rt.jar"
-	else {
-		libraryjars "${System.getProperty('java.home')}/jmods/java.base.jmod", jarfilter: '!**.jar', filter: '!module-info.class'
-	}
-	verbose
-	outjars(file(starmadeDirectory + "mods/" + modName + 'v' + version + '.jar'))
 }
