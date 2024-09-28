@@ -23,15 +23,25 @@ dependencies {
 
 compileJava.options.encoding = 'UTF-8'
 
+tasks.register("updateVersion") {
+	doLast {
+		def modJson = file('src/main/resources/mod.json')
+		def modJsonContent = modJson.getText()
+		modJsonContent = modJsonContent.replaceAll(/"version":\s*".*"/, "\"version\": \"" + version + "\"")
+		modJson.write(modJsonContent)
+	}
+}
+
 jar {
-	duplicatesStrategy(DuplicatesStrategy.INCLUDE)
+	dependsOn("updateVersion")
+	duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
 	destinationDirectory.set(file(starmadeDirectory + "mods"))
-	archiveFileName = modName + 'v' + version + '.jar'
+	archiveFileName = modName + 'v' + getVersion() +  '.jar'
 	manifest.attributes('Main-Class': mainClassName)
 	from {
 		configurations.runtimeClasspath.collect {
 			if(!it.getPath().contains("StarMade") && it.getName().endsWith(".jar")) it.isDirectory() ? it : zipTree(it)
-			else return null
+			else return null;
 		}
 	}
 }
