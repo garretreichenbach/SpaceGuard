@@ -8,8 +8,10 @@ public class ConfigManager {
 	private static FileConfiguration mainConfig;
 	private static final String[] defaultMainConfig = {
 			"vpn_checker_api_key: <API_KEY>",
-			"allow_vpn: false",
-			"allow_alt_usernames: false",
+			"block_vpn: true",
+			"block_proxy: true",
+			"block_tor: true",
+			"block_alt_usernames: true",
 			"check_hardware_ids: true"
 	};
 

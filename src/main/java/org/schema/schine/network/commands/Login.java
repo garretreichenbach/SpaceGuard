@@ -83,8 +83,16 @@ public class Login extends Command {
 		if(code < 0) {
 			LoginCode lCode = LoginCode.getById(code);
 			switch(lCode) {
-				case ERROR_VPN_DETECTED:
+				case ERROR_VPN:
 					System.err.println("[Client] [LOGIN]: ERROR: VPN detected " + extraReason);
+					stateI.setId(code);
+					break;
+				case ERROR_TOR:
+					System.err.println("[Client] [LOGIN]: ERROR: TOR detected " + extraReason);
+					stateI.setId(code);
+					break;
+				case ERROR_PROXY:
+					System.err.println("[Client] [LOGIN]: ERROR: Proxy detected " + extraReason);
 					stateI.setId(code);
 					break;
 				case ERROR_NO_ALTS:
@@ -225,8 +233,10 @@ public class Login extends Command {
 				+ "If you don't have StarMade credentials yet, create one for free on www.star-made.org.\n"
 				+ "And if you are playing on steam you can upgrade your account via steam link."),
 		ERROR_NOT_ADMIN(-11, "This login can only be made as admin"),
-		ERROR_VPN_DETECTED(-12, "Server: VPN detected. Please disable your VPN to connect to this server."),
-		ERROR_NO_ALTS(-13, "Server: No alternative accounts allowed. Please use your main account to connect to this server.");
+		ERROR_VPN(-12, "Server: VPN detected. Please disable your VPN to connect to this server."),
+		ERROR_NO_ALTS(-13, "Server: No alternative accounts allowed. Please use your main account to connect to this server."),
+		ERROR_PROXY(-14, "Server: Proxy detected. Please disable your proxy to connect to this server."),
+		ERROR_TOR(-15, "Server: TOR detected. Please disable your TOR to connect to this server.");
 
 		public final int code;
 		private final String msg;

@@ -41,17 +41,20 @@ public class SecurityManager {
 		if(checkIfPlayerIsBanned(playerData)) return Login.LoginCode.ERROR_YOU_ARE_BANNED.code;
 		if(isAnyAltsAdmin(playerData)) return -1;
 		List<String> knownIPs = playerData.getKnownIPs();
-		if(!ConfigManager.getMainConfig().getBoolean("allow_vpn")) {
-			//Check for VPNs
-			for(String ip : knownIPs) {
-				if(!ip.contains("127.0.0.1") && !ip.contains("localhost")) {
-					if(isVPN(ip)) return Login.LoginCode.ERROR_VPN_DETECTED.code;
+		//Check for VPNs
+		for(String ip : knownIPs) {
+			if(!ip.contains("127.0.0.1") && !ip.contains("localhost")) {
+				boolean[] vpnData = checkIP(ip);
+				if(vpnData != null) {
+					if(vpnData[0] && ConfigManager.getMainConfig().getBoolean("block_vpn")) return Login.LoginCode.ERROR_VPN.code;
+					if(vpnData[1] && ConfigManager.getMainConfig().getBoolean("block_proxy")) return Login.LoginCode.ERROR_PROXY.code;
+					if(vpnData[2] && ConfigManager.getMainConfig().getBoolean("block_tor")) return Login.LoginCode.ERROR_TOR.code;
 				}
 			}
 		}
 
 		try {
-			if(!ConfigManager.getMainConfig().getBoolean("allow_alt_usernames")) {
+			if(ConfigManager.getMainConfig().getBoolean("block_alt_usernames")) {
 				//Check for alternate players under the same account
 				String accountName = playerData.getAccountName();
 				for(PlayerData player : getAllPlayers()) {
@@ -63,7 +66,8 @@ public class SecurityManager {
 					}
 				}
 			}
-		} catch(NullPointerException ignored) {}
+		} catch(NullPointerException ignored) {
+		}
 
 		if(ConfigManager.getMainConfig().getBoolean("check_hardware_ids")) {
 			//Check hardware IDs
@@ -82,22 +86,22 @@ public class SecurityManager {
 		return -1;
 	}
 
-	private static boolean isVPN(String ip) {
+	private static boolean[] checkIP(String ip) {
 		if(ConfigManager.getMainConfig().getString("vpn_checker_api_key").equals("<API_KEY>")) {
-			SpaceGuard.getInstance().logWarning("VPN Checker API key not set. Please make an account at https://vpnapi.io/api-documentation and set the API_KEY in the config." );
-			return false;
+			SpaceGuard.getInstance().logWarning("VPN Checker API key not set. Please make an account at https://vpnapi.io/api-documentation and set the API_KEY in the config.");
+			return null;
 		}
 		String url = "https://vpnapi.io/api/" + ip + "?key=" + ConfigManager.getMainConfig().getString("vpn_checker_api_key");
 		try {
 			JSONObject jsonObject = new JSONObject(IOUtils.toString(new URL(url), StandardCharsets.UTF_8));
 			JSONObject security = jsonObject.getJSONObject("security");
 			boolean vpn = security.getBoolean("vpn");
-//			boolean proxy = security.getBoolean("proxy");
+			boolean proxy = security.getBoolean("proxy");
 			boolean tor = security.getBoolean("tor");
-			return vpn || tor;
+			return new boolean[]{vpn, proxy, tor};
 		} catch(Exception exception) {
 			SpaceGuard.getInstance().logException("An error occurred while checking IP for " + ip, exception);
-			return false;
+			return null;
 		}
 	}
 
@@ -123,7 +127,8 @@ public class SecurityManager {
 		}
 		try {
 			return getPlayer(GameServer.getServerState().getPlayerFromName(name));
-		} catch(Exception ignored) {}
+		} catch(Exception ignored) {
+		}
 		return null;
 	}
 
