@@ -15,7 +15,7 @@ public class EventManager {
 				try {
 					assert event.getPlayerState().isOnServer();
 					if(event.getPlayerState().isAdmin()) return;
-					String reason = SecurityManager.checkPlayer(SecurityManager.getPlayer(event.getPlayerState()));
+					String reason = SecurityManager.checkPlayer(event.getPlayerState(), SecurityManager.getPlayer(event.getPlayerState()));
 					if(reason != null) GameServer.getServerState().getController().sendLogout(event.getPlayerState().getClientId(), reason);
 				} catch(Exception exception) {
 					instance.logException("An error occurred while checking IP for " + event.getPlayerName(), exception);

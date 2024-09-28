@@ -30,11 +30,16 @@ public class SecurityManager {
 	/**
 	 * Checks a player's data to see if they are allowed to log in
 	 *
+	 * @param playerState The player's state
 	 * @param playerData The player's data
 	 * @return null if the player can log in, otherwise returns a message explaining why they cannot
 	 */
-	public static String checkPlayer(PlayerData playerData) {
+	public static String checkPlayer(PlayerState playerState, PlayerData playerData) {
+		if(checkIfPlayerIsBanned(playerState, playerData)) return "You are banned from this server!";
+
 		List<String> knownIPs = playerData.getKnownIPs();
+		List<String> knownAlts = playerData.getKnownAlts();
+
 		int restrictions = playerData.getRestrictions();
 		if((restrictions & PlayerData.NO_VPN) == PlayerData.NO_VPN) {
 			//Check for VPNs
@@ -115,7 +120,10 @@ public class SecurityManager {
 
 	public static PlayerData getPlayer(PlayerState player) {
 		for(PlayerData playerData : getAllPlayers()) {
-			if(playerData.getPlayerName().equals(player.getName())) return playerData;
+			if(playerData.getPlayerName().equals(player.getName())) {
+				playerData.addIP(player.getIp());
+				return playerData;
+			}
 		}
 		return PlayerData.createDefault(player);
 	}
@@ -165,5 +173,9 @@ public class SecurityManager {
 				PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
 			}
 		}
+	}
+
+	public static boolean checkIfPlayerIsBanned(PlayerState playerState, PlayerData playerData) {
+		return true;
 	}
 }

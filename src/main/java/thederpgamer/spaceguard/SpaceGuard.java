@@ -60,11 +60,13 @@ public class SpaceGuard extends StarMod {
 		super.logWarning(message);
 	}
 
+	@Override
 	public void logException(String message, Exception exception) {
 		System.err.println("[SpaceGuard] [EXCEPTION]: " + message + "\n" + exception.getMessage() + "\n" + Arrays.toString(exception.getStackTrace()));
 		super.logException(message, exception);
 	}
 
+	@Override
 	public void logFatal(String message, Exception exception) {
 		System.err.println("[SpaceGuard] [FATAL]: " + message + "\n" + exception.getMessage() + "\n" + Arrays.toString(exception.getStackTrace()));
 		super.logFatal(message, exception);
