@@ -35,22 +35,23 @@ public class SecurityManager {
 	 * Checks a player's data to see if they are allowed to log in
 	 *
 	 * @param playerData The player's data
-	 * @return null if the player can log in, otherwise returns a message explaining why they cannot
+	 * @return -1 if the player can log in, otherwise returns a message explaining why they cannot
 	 */
 	public static int checkPlayer(PlayerData playerData) {
 		if(checkIfPlayerIsBanned(playerData)) return Login.LoginCode.ERROR_YOU_ARE_BANNED.code;
 		if(isAnyAltsAdmin(playerData)) return -1;
 		List<String> knownIPs = playerData.getKnownIPs();
-		int restrictions = playerData.getRestrictions();
-		if((restrictions & PlayerData.NO_VPN) == PlayerData.NO_VPN) {
+		if(!ConfigManager.getMainConfig().getBoolean("allow_vpn")) {
 			//Check for VPNs
 			for(String ip : knownIPs) {
-				if(!ip.contains("127.0.0.1") && !ip.contains("localhost")) if(isVPN(ip)) return Login.LoginCode.ERROR_VPN_DETECTED.code;
+				if(!ip.contains("127.0.0.1") && !ip.contains("localhost")) {
+					if(isVPN(ip)) return Login.LoginCode.ERROR_VPN_DETECTED.code;
+				}
 			}
 		}
 
 		try {
-			if((restrictions & PlayerData.NO_ALTS) == PlayerData.NO_ALTS) {
+			if(!ConfigManager.getMainConfig().getBoolean("allow_alt_usernames")) {
 				//Check for alternate players under the same account
 				String accountName = playerData.getAccountName();
 				for(PlayerData player : getAllPlayers()) {
@@ -64,25 +65,7 @@ public class SecurityManager {
 			}
 		} catch(NullPointerException ignored) {}
 
-		if(((restrictions & PlayerData.CHECK_FOR_ALT_IPS_NP) == PlayerData.CHECK_FOR_ALT_IPS_NP) && !GameServer.getServerState().isAdmin(playerData.getPlayerName())) {
-			if(playerData.getLastLogin() < ConfigManager.getMainConfig().getInt("new_player_login_threshold")) {
-				//Check for alternate IPs on new players
-				for(PlayerData player : getAllPlayers()) {
-					if(player.getLastLogin() == -1) {
-						for(String ip : player.getKnownIPs()) {
-							if(knownIPs.contains(ip)) {
-								player.addAlt(playerData.getPlayerName());
-								playerData.addAlt(player.getPlayerName());
-								PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
-								return Login.LoginCode.ERROR_NO_ALTS.code;
-							}
-						}
-					}
-				}
-			}
-		}
-
-		if((restrictions & PlayerData.CHECK_HARDWARE_IDS) == PlayerData.CHECK_HARDWARE_IDS) {
+		if(ConfigManager.getMainConfig().getBoolean("check_hardware_ids")) {
 			//Check hardware IDs
 			long hardwareID = playerData.getHardwareID();
 			if(hardwareID != 0) {
@@ -96,13 +79,14 @@ public class SecurityManager {
 				}
 			}
 		}
-
-		playerData.setLastLogin(System.currentTimeMillis());
-		PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
 		return -1;
 	}
 
 	private static boolean isVPN(String ip) {
+		if(ConfigManager.getMainConfig().getString("vpn_checker_api_key").equals("<API_KEY>")) {
+			SpaceGuard.getInstance().logWarning("VPN Checker API key not set. Please make an account at https://vpnapi.io/api-documentation and set the API_KEY in the config." );
+			return false;
+		}
 		String url = "https://vpnapi.io/api/" + ip + "?key=" + ConfigManager.getMainConfig().getString("vpn_checker_api_key");
 		try {
 			JSONObject jsonObject = new JSONObject(IOUtils.toString(new URL(url), StandardCharsets.UTF_8));
@@ -129,6 +113,18 @@ public class SecurityManager {
 			}
 		}
 		return PlayerData.createDefault(player);
+	}
+
+	public static PlayerData getPlayer(String name) {
+		for(PlayerData playerData : getAllPlayers()) {
+			if(playerData.getPlayerName().equals(name)) {
+				return playerData;
+			}
+		}
+		try {
+			return getPlayer(GameServer.getServerState().getPlayerFromName(name));
+		} catch(Exception ignored) {}
+		return null;
 	}
 
 	public static PlayerData getPlayer(RegisteredClientOnServer client) {

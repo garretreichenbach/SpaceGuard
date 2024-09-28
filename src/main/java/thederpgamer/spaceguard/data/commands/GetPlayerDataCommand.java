@@ -1,11 +1,9 @@
 package thederpgamer.spaceguard.data.commands;
 
-import api.common.GameServer;
 import api.mod.StarMod;
 import api.utils.game.PlayerUtils;
 import api.utils.game.chat.CommandInterface;
 import org.schema.game.common.data.player.PlayerState;
-import org.schema.game.server.data.GameServerState;
 import thederpgamer.spaceguard.SpaceGuard;
 import thederpgamer.spaceguard.data.PlayerData;
 import thederpgamer.spaceguard.manager.SecurityManager;
@@ -43,15 +41,10 @@ public class GetPlayerDataCommand implements CommandInterface {
 	public boolean onCommand(PlayerState sender, String[] args) {
 		if(args != null && args.length == 1) {
 			try {
-				PlayerState playerState = GameServer.getServerState().getPlayerFromName(args[0]);
-				if(playerState != null) {
-					PlayerData playerData = SecurityManager.getPlayer(sender);
-					PlayerUtils.sendMessage(sender, "Player Data for \"" + playerState.getName() + "\":\n" + playerData);
-					return true;
-				} else {
-					PlayerUtils.sendMessage(sender, "[ERROR]: Player \"" + args[0] + "\" not found.");
-					return true;
-				}
+				PlayerData playerData = SecurityManager.getPlayer(args[0]);
+				if(playerData == null) PlayerUtils.sendMessage(sender, "[ERROR]: Player \"" + args[0] + "\" not found.");
+				else PlayerUtils.sendMessage(sender, "Player Data for \"" + playerData.getPlayerName() + "\":\n" + playerData);
+				return true;
 			} catch(Exception ignored) {}
 		}
 		return false;

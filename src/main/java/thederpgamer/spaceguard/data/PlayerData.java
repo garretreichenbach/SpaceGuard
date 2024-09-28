@@ -17,25 +17,18 @@ import java.util.List;
  */
 public class PlayerData implements JsonSerializer {
 
-	public static final int NO_ALTS = 1;
-	public static final int NO_VPN = 2;
-	public static final int CHECK_HARDWARE_IDS = 4;
-	public static final int CHECK_FOR_ALT_IPS_NP = 8;
-
 	private String accountName;
 	private String playerName;
 	private final List<String> knownIPs = new ArrayList<>();
 	private final List<String> knownAlts = new ArrayList<>();
-	private int restrictions;
 	private long hardwareID;
-	private long lastLogin = -1;
 
 	public static PlayerData createDefault(PlayerState playerState) {
 		List<String> knownIPs = new ArrayList<>();
 		knownIPs.add(playerState.getIp());
 		List<String> knownAlts = new ArrayList<>();
 		knownAlts.add(playerState.getName());
-		PlayerData playerData = new PlayerData(playerState.getStarmadeName(), playerState.getName(), knownIPs, knownAlts, NO_VPN | NO_ALTS | CHECK_HARDWARE_IDS, 0);
+		PlayerData playerData = new PlayerData(playerState.getStarmadeName(), playerState.getName(), knownIPs, knownAlts);
 		PersistentObjectUtil.addObject(SpaceGuard.getInstance().getSkeleton(), playerData);
 		PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
 		return playerData;
@@ -46,19 +39,17 @@ public class PlayerData implements JsonSerializer {
 		knownIPs.add(client.getIp());
 		List<String> knownAlts = new ArrayList<>();
 		knownAlts.add(client.getPlayerName());
-		PlayerData playerData = new PlayerData(client.getStarmadeName(), client.getPlayerName(), knownIPs, knownAlts, NO_VPN | NO_ALTS | CHECK_HARDWARE_IDS, 0);
+		PlayerData playerData = new PlayerData(client.getStarmadeName(), client.getPlayerName(), knownIPs, knownAlts);
 		PersistentObjectUtil.addObject(SpaceGuard.getInstance().getSkeleton(), playerData);
 		PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
 		return playerData;
 	}
 
-	private PlayerData(String accountName, String playerName, List<String> knownIPs, List<String> knownAlts, int restrictions, long lastLogin) {
+	private PlayerData(String accountName, String playerName, List<String> knownIPs, List<String> knownAlts) {
 		this.accountName = accountName;
 		this.playerName = playerName;
 		this.knownIPs.addAll(knownIPs);
 		this.knownAlts.addAll(knownAlts);
-		this.restrictions = restrictions;
-		this.lastLogin = lastLogin;
 	}
 
 	public String getAccountName() {
@@ -86,28 +77,12 @@ public class PlayerData implements JsonSerializer {
 		if(!knownAlts.contains(playerName)) knownAlts.add(playerName);
 	}
 
-	public int getRestrictions() {
-		return restrictions;
-	}
-
-	public void setRestrictions(int restrictions) {
-		this.restrictions = restrictions;
-	}
-
 	public void assignHardwareID(long hardwareID) {
 		this.hardwareID = Math.abs(hardwareID);
 	}
 
 	public long getHardwareID() {
 		return hardwareID;
-	}
-
-	public long getLastLogin() {
-		return lastLogin;
-	}
-
-	public void setLastLogin(long lastLogin) {
-		this.lastLogin = lastLogin;
 	}
 
 	@Override
@@ -122,9 +97,7 @@ public class PlayerData implements JsonSerializer {
 		data.put("playerName", playerName);
 		data.put("knownIPs", knownIPs);
 		data.put("knownAlts", knownAlts);
-		data.put("restrictions", restrictions);
 		data.put("hardwareID", hardwareID);
-		data.put("lastLogin", lastLogin);
 		return data;
 	}
 
@@ -138,8 +111,6 @@ public class PlayerData implements JsonSerializer {
 		for(int i = 0; i < ipArray.length(); i ++) knownIPs.add(ipArray.getString(i));
 		JSONArray altArray = data.getJSONArray("knownAlts");
 		for(int i = 0; i < altArray.length(); i ++) knownAlts.add(altArray.getString(i));
-		restrictions = data.getInt("restrictions");
 		hardwareID = data.getLong("hardwareID");
-		lastLogin = data.getLong("lastLogin");
 	}
 }

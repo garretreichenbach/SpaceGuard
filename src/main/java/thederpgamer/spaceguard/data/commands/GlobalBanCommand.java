@@ -30,7 +30,7 @@ public class GlobalBanCommand implements CommandInterface {
 	@Override
 	public String getDescription() {
 		return "Bans a Player's account, IP, and HID, as well as any alts they might have from the server.\n" +
-				"- /%COMMAND% <player> [reason]: Bans the specified player globally.";
+				"- /%COMMAND% <player> : Bans the specified player globally.";
 	}
 
 	@Override
@@ -40,11 +40,12 @@ public class GlobalBanCommand implements CommandInterface {
 
 	@Override
 	public boolean onCommand(PlayerState sender, String[] args) {
-		if(args != null && (args.length == 1 || args.length == 2)) {
-			String reason = args.length == 2 ? args[1] : "No reason specified";
+		if(args != null && args.length == 1) {
 			try {
 				PlayerState target = GameServer.getServerState().getPlayerFromName(args[0]);
-				if(target == null) PlayerUtils.sendMessage(sender, "[ERROR]: Player \"" + args[0] + "\" not found.");
+				if(target == null) {
+					PlayerData playerData = SecurityManager.getPlayer(args[0]);
+				}
 				else {
 					if(target.isAdmin()) PlayerUtils.sendMessage(sender, "[ERROR]: You cannot ban an admin.");
 					else {
