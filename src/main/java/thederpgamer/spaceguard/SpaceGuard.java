@@ -39,14 +39,12 @@ public class SpaceGuard extends StarMod {
 	@Override
 	public void onServerCreated(ServerInitializeEvent event) {
 		super.onServerCreated(event);
-		KeyManager.initializeServer(event.getServerState());
 		SecurityManager.initializeServer();
 	}
 
 	@Override
 	public void onClientCreated(ClientInitializeEvent event) {
 		super.onClientCreated(event);
-		KeyManager.initializeClient(event.getClientState());
 		SecurityManager.initializeClient();
 	}
 

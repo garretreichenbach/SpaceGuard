@@ -14,6 +14,7 @@ public class EventManager {
 			public void onEvent(PlayerJoinWorldEvent event) {
 				try {
 					assert event.getPlayerState().isOnServer();
+					if(event.getPlayerState().isAdmin()) return;
 					String reason = SecurityManager.checkPlayer(SecurityManager.getPlayer(event.getPlayerState()));
 					if(reason != null) GameServer.getServerState().getController().sendLogout(event.getPlayerState().getClientId(), reason);
 				} catch(Exception exception) {
