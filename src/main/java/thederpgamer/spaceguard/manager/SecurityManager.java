@@ -206,7 +206,7 @@ public class SecurityManager {
 			String os = System.getProperty("os.name");
 			String osVersion = System.getProperty("os.version");
 			String osArch = System.getProperty("os.arch");
-			byte[] data = (macAddresses + vendor + processorID + processors + os + osVersion + osArch).getBytes(StandardCharsets.UTF_8);
+			byte[] data = (vendor + processorID + processors + os + osVersion + osArch).getBytes(StandardCharsets.UTF_8);
 			PacketUtil.sendPacketToServer(new SendHardwareInfoToServerPacket(data));
 		} catch(Exception exception) {
 			SpaceGuard.getInstance().logException("An error occurred while sending hardware info to server", exception);
