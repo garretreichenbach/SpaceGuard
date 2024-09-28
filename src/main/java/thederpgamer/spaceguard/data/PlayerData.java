@@ -1,7 +1,10 @@
 package thederpgamer.spaceguard.data;
 
 import api.mod.config.PersistentObjectUtil;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.schema.game.common.data.player.PlayerState;
+import org.schema.schine.network.RegisteredClientOnServer;
 import thederpgamer.spaceguard.SpaceGuard;
 
 import java.util.ArrayList;
@@ -12,15 +15,15 @@ import java.util.List;
  *
  * @author TheDerpGamer
  */
-public class PlayerData {
+public class PlayerData implements JsonSerializer {
 
 	public static final int NO_ALTS = 1;
 	public static final int NO_VPN = 2;
 	public static final int CHECK_HARDWARE_IDS = 4;
 	public static final int CHECK_FOR_ALT_IPS_NP = 8;
 
-	private final String accountName;
-	private final String playerName;
+	private String accountName;
+	private String playerName;
 	private final List<String> knownIPs = new ArrayList<>();
 	private final List<String> knownAlts = new ArrayList<>();
 	private int restrictions;
@@ -32,7 +35,18 @@ public class PlayerData {
 		knownIPs.add(playerState.getIp());
 		List<String> knownAlts = new ArrayList<>();
 		knownAlts.add(playerState.getName());
-		PlayerData playerData = new PlayerData(playerState.getStarmadeName(), playerState.getName(), knownIPs, knownAlts, NO_VPN | CHECK_HARDWARE_IDS, 0);
+		PlayerData playerData = new PlayerData(playerState.getStarmadeName(), playerState.getName(), knownIPs, knownAlts, NO_VPN | NO_ALTS | CHECK_HARDWARE_IDS, 0);
+		PersistentObjectUtil.addObject(SpaceGuard.getInstance().getSkeleton(), playerData);
+		PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
+		return playerData;
+	}
+
+	public static PlayerData createDefault(RegisteredClientOnServer client) {
+		List<String> knownIPs = new ArrayList<>();
+		knownIPs.add(client.getIp());
+		List<String> knownAlts = new ArrayList<>();
+		knownAlts.add(client.getPlayerName());
+		PlayerData playerData = new PlayerData(client.getStarmadeName(), client.getPlayerName(), knownIPs, knownAlts, NO_VPN | NO_ALTS | CHECK_HARDWARE_IDS, 0);
 		PersistentObjectUtil.addObject(SpaceGuard.getInstance().getSkeleton(), playerData);
 		PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
 		return playerData;
@@ -60,6 +74,7 @@ public class PlayerData {
 	}
 
 	public void addIP(String ip) {
+		if(ip.startsWith("/")) ip = ip.substring(1);
 		if(!knownIPs.contains(ip)) knownIPs.add(ip);
 	}
 
@@ -80,7 +95,7 @@ public class PlayerData {
 	}
 
 	public void assignHardwareID(long hardwareID) {
-		this.hardwareID = hardwareID;
+		this.hardwareID = Math.abs(hardwareID);
 	}
 
 	public long getHardwareID() {
@@ -93,5 +108,38 @@ public class PlayerData {
 
 	public void setLastLogin(long lastLogin) {
 		this.lastLogin = lastLogin;
+	}
+
+	@Override
+	public String toString() {
+		return serialize().toString();
+	}
+
+	@Override
+	public JSONObject serialize() {
+		JSONObject data = new JSONObject();
+		data.put("accountName", accountName);
+		data.put("playerName", playerName);
+		data.put("knownIPs", knownIPs);
+		data.put("knownAlts", knownAlts);
+		data.put("restrictions", restrictions);
+		data.put("hardwareID", hardwareID);
+		data.put("lastLogin", lastLogin);
+		return data;
+	}
+
+	@Override
+	public void deserialize(JSONObject data) {
+		knownIPs.clear();
+		knownAlts.clear();
+		accountName = data.getString("accountName");
+		playerName = data.getString("playerName");
+		JSONArray ipArray = data.getJSONArray("knownIPs");
+		for(int i = 0; i < ipArray.length(); i ++) knownIPs.add(ipArray.getString(i));
+		JSONArray altArray = data.getJSONArray("knownAlts");
+		for(int i = 0; i < altArray.length(); i ++) knownAlts.add(altArray.getString(i));
+		restrictions = data.getInt("restrictions");
+		hardwareID = data.getLong("hardwareID");
+		lastLogin = data.getLong("lastLogin");
 	}
 }

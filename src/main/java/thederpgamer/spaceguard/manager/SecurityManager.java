@@ -6,19 +6,23 @@ import api.network.packets.PacketUtil;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONObject;
 import org.schema.game.common.data.player.PlayerState;
-import oshi.SystemInfo;
-import oshi.hardware.CentralProcessor;
-import oshi.hardware.ComputerSystem;
-import oshi.hardware.HardwareAbstractionLayer;
-import oshi.software.os.OperatingSystem;
+import org.schema.game.server.data.GameServerState;
+import org.schema.game.server.data.PlayerAccountEntrySet;
+import org.schema.schine.network.RegisteredClientOnServer;
+import org.schema.schine.network.StateInterface;
+import org.schema.schine.network.commands.Login;
 import thederpgamer.spaceguard.SpaceGuard;
 import thederpgamer.spaceguard.data.PlayerData;
 import thederpgamer.spaceguard.networking.client.SendHardwareInfoToServerPacket;
+import thederpgamer.spaceguard.utils.DataUtils;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /**
  * [Description]
@@ -30,51 +34,35 @@ public class SecurityManager {
 	/**
 	 * Checks a player's data to see if they are allowed to log in
 	 *
-	 * @param playerState The player's state
 	 * @param playerData The player's data
 	 * @return null if the player can log in, otherwise returns a message explaining why they cannot
 	 */
-	public static String checkPlayer(PlayerState playerState, PlayerData playerData) {
-		if(checkIfPlayerIsBanned(playerState, playerData)) return "You are banned from this server!";
-
+	public static int checkPlayer(PlayerData playerData) {
+		if(checkIfPlayerIsBanned(playerData)) return Login.LoginCode.ERROR_YOU_ARE_BANNED.code;
+		if(isAnyAltsAdmin(playerData)) return -1;
 		List<String> knownIPs = playerData.getKnownIPs();
-		List<String> knownAlts = playerData.getKnownAlts();
-
 		int restrictions = playerData.getRestrictions();
 		if((restrictions & PlayerData.NO_VPN) == PlayerData.NO_VPN) {
 			//Check for VPNs
 			for(String ip : knownIPs) {
-				if(isVPN(ip)) return "You are not allowed to use a VPN or proxy on this server!";
+				if(!ip.contains("127.0.0.1") && !ip.contains("localhost")) if(isVPN(ip)) return Login.LoginCode.ERROR_VPN_DETECTED.code;
 			}
 		}
-		if((restrictions & PlayerData.CHECK_HARDWARE_IDS) == PlayerData.CHECK_HARDWARE_IDS) {
-			//Check hardware IDs
-			long hardwareID = playerData.getHardwareID();
-			if(hardwareID != 0) {
-				List<PlayerData> matchingPlayers = getPlayersWithMatchingHIDs(hardwareID);
-				for(PlayerData player : matchingPlayers) {
-					player.addAlt(playerData.getPlayerName());
-					playerData.addAlt(player.getPlayerName());
-					PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
-				}
-				for(String playerName : playerData.getKnownAlts()) { //Admins can have alt accounts
-					if(GameServer.getServerState().isAdmin(playerName)) return null;
-				}
-				return "You are not allowed to have alternate accounts on this server! Accounts: " + playerData.getKnownAlts().toString();
-			}
-		}
-		if((restrictions & PlayerData.NO_ALTS) == PlayerData.NO_ALTS) {
-			//Check for alternate players under the same account
-			String accountName = playerData.getAccountName();
-			for(PlayerData player : getAllPlayers()) {
-				if(player.getAccountName().equals(accountName) && !player.getPlayerName().equals(playerData.getPlayerName())) {
-					player.addAlt(playerData.getPlayerName());
-					playerData.addAlt(player.getPlayerName());
-					PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
-					return "You are not allowed to have alternate accounts on this server! Accounts: " + player.getKnownAlts().toString();
+
+		try {
+			if((restrictions & PlayerData.NO_ALTS) == PlayerData.NO_ALTS) {
+				//Check for alternate players under the same account
+				String accountName = playerData.getAccountName();
+				for(PlayerData player : getAllPlayers()) {
+					if(player.getAccountName().equals(accountName) && !player.getPlayerName().equals(playerData.getPlayerName())) {
+						player.addAlt(playerData.getPlayerName());
+						playerData.addAlt(player.getPlayerName());
+						PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
+						return Login.LoginCode.ERROR_NO_ALTS.code;
+					}
 				}
 			}
-		}
+		} catch(NullPointerException ignored) {}
 
 		if(((restrictions & PlayerData.CHECK_FOR_ALT_IPS_NP) == PlayerData.CHECK_FOR_ALT_IPS_NP) && !GameServer.getServerState().isAdmin(playerData.getPlayerName())) {
 			if(playerData.getLastLogin() < ConfigManager.getMainConfig().getInt("new_player_login_threshold")) {
@@ -86,17 +74,32 @@ public class SecurityManager {
 								player.addAlt(playerData.getPlayerName());
 								playerData.addAlt(player.getPlayerName());
 								PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
-								return "You are not allowed to have alternate accounts on this server! Accounts: " + player.getKnownAlts().toString();
+								return Login.LoginCode.ERROR_NO_ALTS.code;
 							}
 						}
 					}
 				}
-			} else {
-				playerData.setLastLogin(System.currentTimeMillis());
-				PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
 			}
 		}
-		return null;
+
+		if((restrictions & PlayerData.CHECK_HARDWARE_IDS) == PlayerData.CHECK_HARDWARE_IDS) {
+			//Check hardware IDs
+			long hardwareID = playerData.getHardwareID();
+			if(hardwareID != 0) {
+				for(PlayerData player : getAllPlayers()) {
+					if(player.getHardwareID() == hardwareID && !player.getPlayerName().equals(playerData.getPlayerName())) {
+						player.addAlt(playerData.getPlayerName());
+						playerData.addAlt(player.getPlayerName());
+						PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
+						return Login.LoginCode.ERROR_NO_ALTS.code;
+					}
+				}
+			}
+		}
+
+		playerData.setLastLogin(System.currentTimeMillis());
+		PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
+		return -1;
 	}
 
 	private static boolean isVPN(String ip) {
@@ -128,46 +131,96 @@ public class SecurityManager {
 		return PlayerData.createDefault(player);
 	}
 
-	public static void initializeClient() {
-		sendHardwareInfoToServer();
-	}
-
-	public static void initializeServer() {
-
-	}
-
-	private static List<PlayerData> getPlayersWithMatchingHIDs(long hardwareID) {
-		List<PlayerData> matchingPlayers = new ArrayList<>();
+	public static PlayerData getPlayer(RegisteredClientOnServer client) {
 		for(PlayerData playerData : getAllPlayers()) {
-			if(playerData.getHardwareID() == hardwareID) matchingPlayers.add(playerData);
+			if(playerData.getPlayerName().equals(client.getPlayerName())) {
+				playerData.addIP(client.getIp());
+				return playerData;
+			}
+		}
+		return PlayerData.createDefault(client);
+	}
+
+	public static void initializeClient() {
+		(new Thread() {
+			@Override
+			public void run() {
+				try {
+					sleep(5000);
+					sendHardwareInfoToServer();
+				} catch(InterruptedException exception) {
+					SpaceGuard.getInstance().logException("An error occurred while initializing client", exception);
+				}
+			}
+		}).start();
+	}
+
+	private static HashSet<PlayerData> getPlayersWithMatchingData(PlayerData playerData) {
+		HashSet<PlayerData> matchingPlayers = new HashSet<>();
+		for(PlayerData pd : getAllPlayers()) {
+			if(playerData.getHardwareID() == pd.getHardwareID()) matchingPlayers.add(playerData);
+			else {
+				List<String> knownIPs = playerData.getKnownIPs();
+				List<String> knownAlts = playerData.getKnownAlts();
+				for(String ip : knownIPs) {
+					if(pd.getKnownIPs().contains(ip)) {
+						matchingPlayers.add(pd);
+						break;
+					}
+				}
+				for(String alt : knownAlts) {
+					if(pd.getKnownAlts().contains(alt)) {
+						matchingPlayers.add(pd);
+						break;
+					}
+				}
+			}
 		}
 		return matchingPlayers;
 	}
 
 	private static void sendHardwareInfoToServer() {
-		SystemInfo systemInfo = new SystemInfo();
-		OperatingSystem operatingSystem = systemInfo.getOperatingSystem();
-		HardwareAbstractionLayer hardwareAbstractionLayer = systemInfo.getHardware();
-		CentralProcessor centralProcessor = hardwareAbstractionLayer.getProcessor();
-		ComputerSystem computerSystem = hardwareAbstractionLayer.getComputerSystem();
+		List<String> macAddresses = new ArrayList<>();
+		try {
+			Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
+			while(networkInterfaces.hasMoreElements()) {
+				NetworkInterface networkInterface = networkInterfaces.nextElement();
+				if(!networkInterface.isLoopback()) {
+					byte[] mac = networkInterface.getHardwareAddress();
+					if(mac != null) {
+						StringBuilder sb = new StringBuilder();
+						for(int i = 0; i < mac.length; i++) sb.append(String.format("%02X%s", mac[i], (i < mac.length - 1) ? "-" : ""));
+						macAddresses.add(sb.toString());
+					}
+				}
+			}
+		} catch(SocketException exception) {
+			SpaceGuard.getInstance().logException("An error occurred while getting MAC address", exception);
+		}
 
-		String vendor = operatingSystem.getManufacturer();
-		String processorSerialNumber = computerSystem.getSerialNumber();
-		CentralProcessor.ProcessorIdentifier processorIdentifier = centralProcessor.getProcessorIdentifier();
-		int processors = centralProcessor.getLogicalProcessorCount();
-
-		PacketUtil.sendPacketToServer(new SendHardwareInfoToServerPacket(vendor, processorSerialNumber, processorIdentifier.getProcessorID(), processors));
+		try {
+			String vendor = System.getenv("PROCESSOR_IDENTIFIER");
+			String processorID = System.getenv("PROCESSOR_IDENTIFIER");
+			int processors = Runtime.getRuntime().availableProcessors();
+			String os = System.getProperty("os.name");
+			String osVersion = System.getProperty("os.version");
+			String osArch = System.getProperty("os.arch");
+			byte[] data = (macAddresses + vendor + processorID + processors + os + osVersion + osArch).getBytes(StandardCharsets.UTF_8);
+			PacketUtil.sendPacketToServer(new SendHardwareInfoToServerPacket(data));
+		} catch(Exception exception) {
+			SpaceGuard.getInstance().logException("An error occurred while sending hardware info to server", exception);
+		}
 	}
 
-	public static void assignUniqueID(PlayerState playerState, String vendor, String processorSerialNumber, String processorID, int processors) {
+	public static void assignUniqueID(PlayerState playerState, byte[] data) {
 		PlayerData playerData = getPlayer(playerState);
 		if(playerData.getHardwareID() == 0) { //First time logging in
-			long newID = (vendor + processorSerialNumber + processorID + processors).hashCode();
+			long newID = Math.abs(Arrays.hashCode(data)) + Math.abs(Objects.requireNonNull(getServerUUID(playerState.getState())).hashCode());
 			playerData.assignHardwareID(newID);
 			PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
 		} else {
 			long currentID = playerData.getHardwareID();
-			long newID = (vendor + processorSerialNumber + processorID + processors).hashCode();
+			long newID = Math.abs(Arrays.hashCode(data)) + Math.abs(Objects.requireNonNull(getServerUUID(playerState.getState())).hashCode());
 			if(currentID != newID) {
 				playerData.assignHardwareID(newID);
 				PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
@@ -175,7 +228,55 @@ public class SecurityManager {
 		}
 	}
 
-	public static boolean checkIfPlayerIsBanned(PlayerState playerState, PlayerData playerData) {
-		return true;
+	public static boolean checkIfPlayerIsBanned(PlayerData playerData) {
+		PlayerAccountEntrySet accounts = GameServer.getServerState().getBlackListedAccounts();
+		if(accounts.containsAndIsValid(playerData.getAccountName())) return true;
+		PlayerAccountEntrySet ips = GameServer.getServerState().getBlackListedIps();
+		for(String ip : playerData.getKnownIPs()) {
+			if(ips.containsAndIsValid(ip)) return true;
+		}
+		PlayerAccountEntrySet names = GameServer.getServerState().getBlackListedNames();
+		for(String alt : playerData.getKnownAlts()) {
+			if(names.containsAndIsValid(alt)) return true;
+		}
+		return names.containsAndIsValid(playerData.getPlayerName());
+	}
+
+	public static void globalBanPlayer(PlayerData playerData) {
+		HashSet<PlayerData> matchingPlayers = getPlayersWithMatchingData(playerData);
+		for(PlayerData player : matchingPlayers) {
+			try {
+				for(String ip : player.getKnownIPs()) GameServer.getServerState().getController().addBannedIp("Server", ip, -1);
+				GameServer.getServerState().getController().addBannedAccount("Server", player.getAccountName(), -1);
+				GameServer.getServerState().getController().addBannedName("Server", player.getPlayerName(), -1);
+			} catch(Exception exception) {
+				SpaceGuard.getInstance().logException("An error occurred while banning player " + player.getPlayerName(), exception);
+			}
+		}
+	}
+
+	private static String getServerUUID(StateInterface stateInterface) {
+		assert stateInterface instanceof GameServerState : new IllegalAccessException("Server UUID can only be retrieved on the server");
+		try {
+			File serverSecret = new File(DataUtils.getWorldDataPath() + "/server_secret.smdat");
+			if(!serverSecret.exists()) {
+				String uuid = UUID.randomUUID().toString();
+				serverSecret.createNewFile();
+				FileWriter writer = new FileWriter(serverSecret);
+				writer.write(uuid);
+				writer.close();
+				return uuid;
+			} else return IOUtils.toString(serverSecret.toURI(), StandardCharsets.UTF_8);
+		} catch(Exception exception) {
+			SpaceGuard.getInstance().logException("An error occurred while getting server UUID", exception);
+		}
+		return null;
+	}
+
+	private static boolean isAnyAltsAdmin(PlayerData playerData) {
+		for(String playerName : playerData.getKnownAlts()) {
+			if(GameServer.getServerState().isAdmin(playerName)) return true;
+		}
+		return false;
 	}
 }

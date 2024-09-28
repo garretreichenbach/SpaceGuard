@@ -1,20 +1,8 @@
-buildscript {
-	repositories {
-		mavenCentral()
-		maven { url 'https://maven.guardsquare.com' }
-	}
-
-	dependencies {
-		classpath 'com.guardsquare:proguard-gradle:7.5.0'
-	}
-}
-
 plugins {
 	id 'java'
 	id 'application'
 }
 
-apply plugin: 'java'
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
 
@@ -31,14 +19,13 @@ repositories {
 dependencies {
 	implementation(files(starmadeDirectory + "StarMade.jar"))
 	implementation(fileTree(dir: (starmadeDirectory + "lib"), include: "*.jar"))
-	implementation('com.github.oshi:oshi-core:5.7.5')
 }
 
 compileJava.options.encoding = 'UTF-8'
 
 jar {
+	duplicatesStrategy(DuplicatesStrategy.INCLUDE)
 	destinationDirectory.set(file(starmadeDirectory + "mods"))
-	duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
 	archiveFileName = modName + 'v' + version + '.jar'
 	manifest.attributes('Main-Class': mainClassName)
 	from {

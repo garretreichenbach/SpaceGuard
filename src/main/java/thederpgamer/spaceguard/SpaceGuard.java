@@ -1,11 +1,17 @@
 package thederpgamer.spaceguard;
 
 import api.listener.events.controller.ClientInitializeEvent;
-import api.listener.events.controller.ServerInitializeEvent;
+import api.mod.StarLoader;
 import api.mod.StarMod;
+import api.network.packets.PacketUtil;
 import org.apache.commons.io.IOUtils;
+import thederpgamer.spaceguard.data.commands.GetPlayerDataCommand;
+import thederpgamer.spaceguard.data.commands.GlobalBanCommand;
+import thederpgamer.spaceguard.manager.ConfigManager;
+import thederpgamer.spaceguard.manager.EventManager;
+import thederpgamer.spaceguard.manager.PacketManager;
 import thederpgamer.spaceguard.manager.SecurityManager;
-import thederpgamer.spaceguard.manager.*;
+import thederpgamer.spaceguard.networking.client.SendHardwareInfoToServerPacket;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -18,9 +24,6 @@ public class SpaceGuard extends StarMod {
 	//Instance
 	private static SpaceGuard instance;
 
-	//Use this to overwrite specific vanilla classes
-	private final String[] overwriteClasses = {};
-
 	public SpaceGuard() {
 		instance = this;
 	}
@@ -29,22 +32,20 @@ public class SpaceGuard extends StarMod {
 		return instance;
 	}
 
+	private static final String[] overwriteClasses = {"Login"};
+
 	@Override
 	public void onEnable() {
+		super.onEnable();
 		ConfigManager.initialize(this);
 		EventManager.initialize(this);
 		PacketManager.initialize();
-	}
-
-	@Override
-	public void onServerCreated(ServerInitializeEvent event) {
-		super.onServerCreated(event);
-		SecurityManager.initializeServer();
+		registerCommands();
+		registerPackets();
 	}
 
 	@Override
 	public void onClientCreated(ClientInitializeEvent event) {
-		super.onClientCreated(event);
 		SecurityManager.initializeClient();
 	}
 
@@ -63,18 +64,22 @@ public class SpaceGuard extends StarMod {
 	@Override
 	public void logException(String message, Exception exception) {
 		System.err.println("[SpaceGuard] [EXCEPTION]: " + message + "\n" + exception.getMessage() + "\n" + Arrays.toString(exception.getStackTrace()));
+		exception.printStackTrace();
 		super.logException(message, exception);
 	}
 
 	@Override
 	public void logFatal(String message, Exception exception) {
 		System.err.println("[SpaceGuard] [FATAL]: " + message + "\n" + exception.getMessage() + "\n" + Arrays.toString(exception.getStackTrace()));
+		exception.printStackTrace();
 		super.logFatal(message, exception);
 	}
 
 	@Override
 	public byte[] onClassTransform(String className, byte[] byteCode) {
-		for(String name : overwriteClasses) if(className.endsWith(name)) return overwriteClass(className, byteCode);
+		for(String name : overwriteClasses) {
+			if(className.endsWith(name)) return overwriteClass(className, byteCode);
+		}
 		return super.onClassTransform(className, byteCode);
 	}
 
@@ -88,10 +93,19 @@ public class SpaceGuard extends StarMod {
 				if(nextEntry.getName().endsWith(className + ".class")) bytes = IOUtils.toByteArray(file);
 			}
 			file.close();
-		} catch(IOException e) {
-			e.printStackTrace();
+		} catch(IOException exception) {
+			exception.printStackTrace();
 		}
 		if(bytes != null) return bytes;
 		else return byteCode;
+	}
+
+	private void registerCommands() {
+		StarLoader.registerCommand(new GlobalBanCommand());
+		StarLoader.registerCommand(new GetPlayerDataCommand());
+	}
+
+	private void registerPackets() {
+		PacketUtil.registerPacket(SendHardwareInfoToServerPacket.class);
 	}
 }

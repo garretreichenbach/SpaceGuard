@@ -10,34 +10,22 @@ import java.io.IOException;
 
 public class SendHardwareInfoToServerPacket extends Packet {
 
-	private String vendor;
-	private String processorSerialNumber;
-	private String processorID;
-	private int processors;
+	private byte[] data;
 
-	public SendHardwareInfoToServerPacket(String vendor, String processorSerialNumber, String processorID, int processors) {
-		this.vendor = vendor;
-		this.processorSerialNumber = processorSerialNumber;
-		this.processorID = processorID;
-		this.processors = processors;
+	public SendHardwareInfoToServerPacket(byte[] data) {
+		this.data = data;
 	}
 
 	public SendHardwareInfoToServerPacket() {}
 
 	@Override
 	public void readPacketData(PacketReadBuffer packetReadBuffer) throws IOException {
-		vendor = packetReadBuffer.readString();
-		processorSerialNumber = packetReadBuffer.readString();
-		processorID = packetReadBuffer.readString();
-		processors = packetReadBuffer.readInt();
+		data = packetReadBuffer.readByteArray();
 	}
 
 	@Override
 	public void writePacketData(PacketWriteBuffer packetWriteBuffer) throws IOException {
-		packetWriteBuffer.writeString(vendor);
-		packetWriteBuffer.writeString(processorSerialNumber);
-		packetWriteBuffer.writeString(processorID);
-		packetWriteBuffer.writeInt(processors);
+		packetWriteBuffer.writeByteArray(data);
 	}
 
 	@Override
@@ -47,6 +35,6 @@ public class SendHardwareInfoToServerPacket extends Packet {
 
 	@Override
 	public void processPacketOnServer(PlayerState playerState) {
-		SecurityManager.assignUniqueID(playerState, vendor, processorSerialNumber, processorID, processors);
+		SecurityManager.assignUniqueID(playerState, data);
 	}
 }
