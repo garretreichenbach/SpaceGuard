@@ -1,11 +1,19 @@
 package thederpgamer.spaceguard.manager;
 
 import api.mod.config.PersistentObjectUtil;
+import api.network.packets.PacketUtil;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONObject;
 import org.schema.game.common.data.player.PlayerState;
+import oshi.SystemInfo;
+import oshi.hardware.CentralProcessor;
+import oshi.hardware.ComputerSystem;
+import oshi.hardware.HardwareAbstractionLayer;
+import oshi.software.os.OperatingSystem;
 import thederpgamer.spaceguard.SpaceGuard;
 import thederpgamer.spaceguard.data.PlayerData;
+import thederpgamer.spaceguard.networking.client.SendHardwareInfoToServerPacket;
+import thederpgamer.spaceguard.utils.EncryptionUtils;
 
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -20,6 +28,7 @@ public class SecurityManager {
 
 	/**
 	 * Checks a player's data to see if they are allowed to log in
+	 *
 	 * @param playerData The player's data
 	 * @return null if the player can log in, otherwise returns a message explaining why they cannot
 	 */
@@ -38,6 +47,10 @@ public class SecurityManager {
 			for(String ip : knownIPs) {
 				if(isVPN(ip)) return "You are not allowed to use a VPN or proxy";
 			}
+		}
+		if((restrictions & PlayerData.CHECK_HARDWARE_IDS) == PlayerData.CHECK_HARDWARE_IDS) {
+			//Check hardware IDs
+
 		}
 		if((restrictions & PlayerData.LAX_IP_RESTRICTION) == PlayerData.LAX_IP_RESTRICTION) {
 			//No IP restrictions
@@ -78,5 +91,33 @@ public class SecurityManager {
 			if(playerData.getPlayerName().equals(player.getName())) return playerData;
 		}
 		return PlayerData.createDefault(player);
+	}
+
+	public static void initializeClient() {
+		sendHardwareInfoToServer();
+	}
+
+	public static void initializeServer() {
+
+	}
+
+	private static void sendHardwareInfoToServer() {
+		SystemInfo systemInfo = new SystemInfo();
+		OperatingSystem operatingSystem = systemInfo.getOperatingSystem();
+		HardwareAbstractionLayer hardwareAbstractionLayer = systemInfo.getHardware();
+		CentralProcessor centralProcessor = hardwareAbstractionLayer.getProcessor();
+		ComputerSystem computerSystem = hardwareAbstractionLayer.getComputerSystem();
+
+		String vendor = operatingSystem.getManufacturer();
+		String processorSerialNumber = computerSystem.getSerialNumber();
+		CentralProcessor.ProcessorIdentifier processorIdentifier = centralProcessor.getProcessorIdentifier();
+		int processors = centralProcessor.getLogicalProcessorCount();
+
+		PacketUtil.sendPacketToServer(new SendHardwareInfoToServerPacket(vendor, processorSerialNumber, processorIdentifier.getProcessorID(), processors));
+	}
+
+	public static void assignUniqueID(PlayerState playerState, String vendor, String processorSerialNumber, String processorID, int processors) {
+		long hardwareID = (vendor + processorSerialNumber + processorID + processors).hashCode();
+		long serverSecret = KeyUtils.getServerSecretKey();
 	}
 }

@@ -1,10 +1,11 @@
 package thederpgamer.spaceguard;
 
+import api.listener.events.controller.ClientInitializeEvent;
+import api.listener.events.controller.ServerInitializeEvent;
 import api.mod.StarMod;
 import org.apache.commons.io.IOUtils;
-import thederpgamer.spaceguard.manager.ConfigManager;
-import thederpgamer.spaceguard.manager.EventManager;
-import thederpgamer.spaceguard.manager.PacketManager;
+import thederpgamer.spaceguard.manager.SecurityManager;
+import thederpgamer.spaceguard.manager.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -33,6 +34,20 @@ public class SpaceGuard extends StarMod {
 		ConfigManager.initialize(this);
 		EventManager.initialize(this);
 		PacketManager.initialize();
+	}
+
+	@Override
+	public void onServerCreated(ServerInitializeEvent event) {
+		super.onServerCreated(event);
+		KeyManager.initializeServer(event.getServerState());
+		SecurityManager.initializeServer();
+	}
+
+	@Override
+	public void onClientCreated(ClientInitializeEvent event) {
+		super.onClientCreated(event);
+		KeyManager.initializeClient(event.getClientState());
+		SecurityManager.initializeClient();
 	}
 
 	@Override
