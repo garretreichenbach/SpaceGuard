@@ -12,7 +12,8 @@ public class ConfigManager {
 			"block_proxy: true",
 			"block_tor: true",
 			"block_alt_usernames: true",
-			"check_hardware_ids: true"
+			"check_hardware_ids: true",
+			"discord_webhook_url: <WEBHOOK_URL>",
 	};
 
 	public static void initialize(SpaceGuard instance) {
