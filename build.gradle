@@ -19,6 +19,7 @@ repositories {
 dependencies {
 	implementation(files(starmadeDirectory + "StarMade.jar"))
 	implementation(fileTree(dir: (starmadeDirectory + "lib"), include: "*.jar"))
+//	implementation 'com.github.oshi:oshi-core:6.6.4'
 }
 
 compileJava.options.encoding = 'UTF-8'

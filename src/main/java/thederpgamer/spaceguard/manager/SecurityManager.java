@@ -5,7 +5,6 @@ import api.mod.config.PersistentObjectUtil;
 import api.network.packets.PacketUtil;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONObject;
-import org.lwjgl.Sys;
 import org.schema.game.common.data.player.PlayerState;
 import org.schema.game.server.data.GameServerState;
 import org.schema.game.server.data.PlayerAccountEntrySet;
@@ -252,6 +251,25 @@ public final class SecurityManager {
 	}
 
 	private static byte[] getHardwareInfo() {
+		/* oshi is dumb and doesn't work idk why
+		try {
+			SystemInfo systemInfo = new SystemInfo();
+			OperatingSystem operatingSystem = systemInfo.getOperatingSystem();
+			HardwareAbstractionLayer hardware = systemInfo.getHardware();
+			String processorID = hardware.getProcessor().getProcessorIdentifier().getProcessorID();
+			String processorArch = hardware.getProcessor().getProcessorIdentifier().getMicroarchitecture();
+			int processors = hardware.getProcessor().getLogicalProcessorCount();
+			String os = operatingSystem.getFamily();
+//			String serialNumber = hardware.getComputerSystem().getSerialNumber(); Supposedly can cause issues with Linux/FreeBSD if not run as root
+			String hardwareUUID = hardware.getComputerSystem().getHardwareUUID();
+//			String userName = System.getProperty("user.name");
+//			String userHome = System.getProperty("user.home");
+			String firmware = hardware.getComputerSystem().getFirmware().getName();
+			return (processorID + processorArch + processors + os + hardwareUUID + firmware).getBytes(StandardCharsets.UTF_8);
+		} catch(Exception exception) {
+			SpaceGuard.getInstance().logException("An error occurred while getting hardware info", exception);
+		}
+		 */
 		List<String> macAddresses = new ArrayList<>();
 		try {
 			Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
@@ -269,7 +287,6 @@ public final class SecurityManager {
 		} catch(SocketException exception) {
 			SpaceGuard.getInstance().logException("An error occurred while getting MAC address", exception);
 		}
-
 		try {
 			String processorID = System.getenv("PROCESSOR_IDENTIFIER");
 			String processorArch = System.getenv("PROCESSOR_ARCHITECTURE");
