@@ -12,7 +12,8 @@ public final class ConfigManager {
 			"block_proxy: true",
 			"block_tor: true",
 			"block_alts: true",
-			"discord_webhook_url: <WEBHOOK_URL>"
+			"discord_webhook_url: <WEBHOOK_URL>",
+			"approved_client_mods: [8366, 8054, 8219, 8324, 8215]",
 	};
 
 	public static void initialize(SpaceGuard instance) {
