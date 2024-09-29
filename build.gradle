@@ -34,7 +34,7 @@ tasks.register("updateVersion") {
 }
 
 jar {
-	dependsOn("updateVersion", "clean")
+	dependsOn("updateVersion")
 	duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
 	destinationDirectory.set(file(starmadeDirectory + "mods"))
 	archiveFileName = modName + 'v' + getVersion() +  '.jar'

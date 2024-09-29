@@ -2,7 +2,7 @@
   "name": "SpaceGuard",
   "author": "TheDerpGamer",
   "description": "Security, Anti-Alt and Anti-Cheat mod for StarMade Servers.",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "starmade_version": "0.203.164",
   "client_mod": false,
   "server_mod": false,
