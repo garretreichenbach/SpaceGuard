@@ -5,13 +5,14 @@ import api.mod.StarLoader;
 import api.mod.StarMod;
 import api.network.packets.PacketUtil;
 import org.apache.commons.io.IOUtils;
+import thederpgamer.spaceguard.data.DiscordWebhook;
 import thederpgamer.spaceguard.data.commands.GetPlayerDataCommand;
 import thederpgamer.spaceguard.data.commands.GlobalBanCommand;
 import thederpgamer.spaceguard.manager.ConfigManager;
 import thederpgamer.spaceguard.manager.EventManager;
 import thederpgamer.spaceguard.manager.PacketManager;
 import thederpgamer.spaceguard.manager.SecurityManager;
-import thederpgamer.spaceguard.networking.client.SendHardwareInfoToServerPacket;
+import thederpgamer.spaceguard.networking.client.SendClientInfoToServer;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,7 +20,7 @@ import java.util.Arrays;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-public class SpaceGuard extends StarMod {
+public final class SpaceGuard extends StarMod {
 
 	//Instance
 	private static SpaceGuard instance;
@@ -103,6 +104,19 @@ public class SpaceGuard extends StarMod {
 	}
 
 	private void registerPackets() {
-		PacketUtil.registerPacket(SendHardwareInfoToServerPacket.class);
+		PacketUtil.registerPacket(SendClientInfoToServer.class);
+	}
+
+	public static void logDiscordMessage(String message) {
+		if(ConfigManager.getMainConfig().getString("discord_webhook_url").equals("<WEBHOOK_URL>")) SpaceGuard.getInstance().logWarning("Discord webhook URL not set. Please set the WEBHOOK_URL in the config.");
+		else {
+			try {
+				DiscordWebhook webhook = new DiscordWebhook(ConfigManager.getMainConfig().getString("discord_webhook_url"));
+				webhook.setContent(message);
+				webhook.execute();
+			} catch(Exception exception) {
+				instance.logException("An error occurred while sending message to Discord", exception);
+			}
+		}
 	}
 }

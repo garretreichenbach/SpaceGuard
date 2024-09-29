@@ -6,11 +6,11 @@ SpaceGuard is an all-in-one anti-cheat, anti-alt, and general security mod for S
 - **Alt Detection:** Blocks non-admin users from logging in under an alternate username.
 - **VPN, Proxy, & TOR Detection:** Detects 98% of VPNs and blocks them.
 - **Anti-Cheat:** Patches various exploits and vulnerabilities present in the base game.
+- **Client Mod Filter:** Allows servers to filter what client-side mods players are allowed to use, and can block unknown or suspicious mods.
+- **Discord Compatibility:** If configured, SpaceGuard will log any incidents in the configured staff channel so that admins can review it through Discord instead of in-game.
 - **Configurability:** SpaceGuard is designed to be highly customizable, and all of the above features can be toggled or configured via the mod's [configuration](https://github.com/garretreichenbach/SpaceGuard/wiki/Configuration).
 
 ## Planned Features
-- **Discord Compatibility:** If configured, SpaceGuard will log any incidents in the configured staff channel so that admins can review it through Discord instead of in-game.
-- **Client Mod Filter:** Allows servers to filter what client-side mods players are allowed to use, and can block unknown or suspicious mods.
 - **Suspicious Player Flagger:** Flags players that perform suspicious behaviors and logs incidents for admin review.
 - **Silent Watch:** Allows an admin to observe a suspicious player directly without them knowing.
 - **Inventory Viewer:** Allows an admin to view a player's inventory, as well as any inventory blocks they have accessed.

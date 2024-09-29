@@ -7,9 +7,7 @@ import org.schema.game.common.data.player.PlayerState;
 import org.schema.schine.network.RegisteredClientOnServer;
 import thederpgamer.spaceguard.SpaceGuard;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -17,7 +15,7 @@ import java.util.Set;
  *
  * @author TheDerpGamer
  */
-public class PlayerData implements JsonSerializer {
+public final class PlayerData implements JsonSerializer {
 
 	private static final byte VERSION = 2;
 	private String accountName;

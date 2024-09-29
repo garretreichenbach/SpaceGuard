@@ -3,7 +3,7 @@ package thederpgamer.spaceguard.manager;
 import api.mod.config.FileConfiguration;
 import thederpgamer.spaceguard.SpaceGuard;
 
-public class ConfigManager {
+public final class ConfigManager {
 
 	private static FileConfiguration mainConfig;
 	private static final String[] defaultMainConfig = {
@@ -11,8 +11,7 @@ public class ConfigManager {
 			"block_vpn: true",
 			"block_proxy: true",
 			"block_tor: true",
-			"block_alt_usernames: true",
-			"check_hardware_ids: true",
+			"block_alts: true",
 			"discord_webhook_url: <WEBHOOK_URL>"
 	};
 

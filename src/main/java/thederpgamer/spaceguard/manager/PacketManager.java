@@ -1,11 +1,11 @@
 package thederpgamer.spaceguard.manager;
 
 import api.network.packets.PacketUtil;
-import thederpgamer.spaceguard.networking.client.SendHardwareInfoToServerPacket;
+import thederpgamer.spaceguard.networking.client.SendClientInfoToServer;
 
-public class PacketManager {
+public final class PacketManager {
 
 	public static void initialize() {
-		PacketUtil.registerPacket(SendHardwareInfoToServerPacket.class);
+		PacketUtil.registerPacket(SendClientInfoToServer.class);
 	}
 }

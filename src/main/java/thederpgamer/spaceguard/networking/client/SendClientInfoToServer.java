@@ -7,25 +7,31 @@ import org.schema.game.common.data.player.PlayerState;
 import thederpgamer.spaceguard.manager.SecurityManager;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Set;
 
-public class SendHardwareInfoToServerPacket extends Packet {
+public final class SendClientInfoToServer extends Packet {
 
 	private byte[] data;
+	private Set<Integer> mods;
 
-	public SendHardwareInfoToServerPacket(byte[] data) {
+	public SendClientInfoToServer(byte[] data, Set<Integer> mods) {
 		this.data = data;
+		this.mods = mods;
 	}
 
-	public SendHardwareInfoToServerPacket() {}
+	public SendClientInfoToServer() {}
 
 	@Override
 	public void readPacketData(PacketReadBuffer packetReadBuffer) throws IOException {
 		data = packetReadBuffer.readByteArray();
+		mods.addAll(packetReadBuffer.readIntList());
 	}
 
 	@Override
 	public void writePacketData(PacketWriteBuffer packetWriteBuffer) throws IOException {
 		packetWriteBuffer.writeByteArray(data);
+		packetWriteBuffer.writeIntList(mods);
 	}
 
 	@Override
@@ -35,6 +41,8 @@ public class SendHardwareInfoToServerPacket extends Packet {
 
 	@Override
 	public void processPacketOnServer(PlayerState playerState) {
-		SecurityManager.assignUniqueID(playerState, data);
+		List<Integer> illegalMods = SecurityManager.approveMods(mods);
+		if(illegalMods.isEmpty()) SecurityManager.assignUniqueID(playerState, data);
+		else SecurityManager.kickPlayerForIllegalMods(playerState, illegalMods);
 	}
 }

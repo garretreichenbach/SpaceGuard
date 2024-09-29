@@ -1,6 +1,8 @@
 package thederpgamer.spaceguard.manager;
 
 import api.common.GameServer;
+import api.mod.ModSkeleton;
+import api.mod.StarLoader;
 import api.mod.config.PersistentObjectUtil;
 import api.network.packets.PacketUtil;
 import org.apache.commons.io.IOUtils;
@@ -8,12 +10,13 @@ import org.json.JSONObject;
 import org.schema.game.common.data.player.PlayerState;
 import org.schema.game.server.data.GameServerState;
 import org.schema.game.server.data.PlayerAccountEntrySet;
+import org.schema.game.server.data.admin.AdminCommands;
 import org.schema.schine.network.RegisteredClientOnServer;
 import org.schema.schine.network.StateInterface;
 import org.schema.schine.network.commands.Login;
 import thederpgamer.spaceguard.SpaceGuard;
 import thederpgamer.spaceguard.data.PlayerData;
-import thederpgamer.spaceguard.networking.client.SendHardwareInfoToServerPacket;
+import thederpgamer.spaceguard.networking.client.SendClientInfoToServer;
 import thederpgamer.spaceguard.utils.DataUtils;
 
 import java.io.File;
@@ -52,34 +55,14 @@ public final class SecurityManager {
 			}
 		}
 
-		try {
-			if(ConfigManager.getMainConfig().getBoolean("block_alt_usernames")) {
-				//Check for alternate players under the same account
-				String accountName = playerData.getAccountName();
-				for(PlayerData player : getAllPlayers()) {
-					if(player.getAccountName().equals(accountName) && !player.getPlayerName().equals(playerData.getPlayerName())) {
-						player.addAlt(playerData.getPlayerName());
-						playerData.addAlt(player.getPlayerName());
-						PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
-						return Login.LoginCode.ERROR_NO_ALTS.code;
-					}
-				}
-			}
-		} catch(NullPointerException ignored) {
-		}
-
-		if(ConfigManager.getMainConfig().getBoolean("check_hardware_ids")) {
-			//Check hardware IDs
-			for(long hardwareID : playerData.getHardwareIDs()) {
-				if(hardwareID != 0) {
-					for(PlayerData player : getAllPlayers()) {
-						if(player.getHardwareIDs().contains(hardwareID) && !player.getPlayerName().equals(playerData.getPlayerName())) {
-							player.addAlt(playerData.getPlayerName());
-							playerData.addAlt(player.getPlayerName());
-							PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
-							return Login.LoginCode.ERROR_NO_ALTS.code;
-						}
-					}
+		if(ConfigManager.getMainConfig().getBoolean("block_alts")) {
+			HashSet<PlayerData> matchingPlayers = getPlayersWithMatchingData(playerData);
+			if(!matchingPlayers.isEmpty()) {
+				for(PlayerData player : matchingPlayers) {
+					player.addAlt(playerData.getPlayerName());
+					playerData.addAlt(player.getPlayerName());
+					PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
+					return Login.LoginCode.ERROR_NO_ALTS.code;
 				}
 			}
 		}
@@ -98,7 +81,7 @@ public final class SecurityManager {
 			boolean vpn = security.getBoolean("vpn");
 			boolean proxy = security.getBoolean("proxy");
 			boolean tor = security.getBoolean("tor");
-			return new boolean[]{vpn, proxy, tor};
+			return new boolean[] {vpn, proxy, tor};
 		} catch(Exception exception) {
 			SpaceGuard.getInstance().logException("An error occurred while checking IP for " + ip, exception);
 			return null;
@@ -148,7 +131,7 @@ public final class SecurityManager {
 			public void run() {
 				try {
 					sleep(5000);
-					sendHardwareInfoToServer();
+					sendClientInfoToServer();
 				} catch(InterruptedException exception) {
 					SpaceGuard.getInstance().logException("An error occurred while initializing client", exception);
 				}
@@ -186,9 +169,12 @@ public final class SecurityManager {
 		return matchingPlayers;
 	}
 
-	private static void sendHardwareInfoToServer() {
+	private static void sendClientInfoToServer() {
 		byte[] hardwareInfo = getHardwareInfo();
-		if(hardwareInfo != null) PacketUtil.sendPacketToServer(new SendHardwareInfoToServerPacket(hardwareInfo));
+		List<ModSkeleton> mods = StarLoader.starMods;
+		Set<Integer> modIds = new HashSet<>();
+		for(int i = 0; i < mods.size(); i++) modIds.add(i);
+		if(hardwareInfo != null) PacketUtil.sendPacketToServer(new SendClientInfoToServer(hardwareInfo, modIds));
 	}
 
 	public static void assignUniqueID(PlayerState playerState, byte[] data) {
@@ -216,6 +202,9 @@ public final class SecurityManager {
 		HashSet<PlayerData> matchingPlayers = getPlayersWithMatchingData(playerData);
 		for(PlayerData player : matchingPlayers) {
 			try {
+				player.addAlt(playerData.getPlayerName());
+				playerData.addAlt(player.getPlayerName());
+				PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
 				for(String ip : player.getKnownIPs()) GameServer.getServerState().getController().addBannedIp("Server", ip, -1);
 				GameServer.getServerState().getController().addBannedAccount("Server", player.getAccountName(), -1);
 				GameServer.getServerState().getController().addBannedName("Server", player.getPlayerName(), -1);
@@ -301,5 +290,39 @@ public final class SecurityManager {
 			SpaceGuard.getInstance().logException("An error occurred while sending hardware info to server", exception);
 		}
 		return null;
+	}
+
+	public static List<Integer> approveMods(Set<Integer> mods) {
+		List<Integer> illegalMods = new ArrayList<>();
+		List<String> approvedMods = ConfigManager.getMainConfig().getList("approved_client_mods");
+		if(approvedMods != null && !approvedMods.isEmpty()) {
+			for(ModSkeleton serverMod : StarLoader.starMods) approvedMods.add(String.valueOf(serverMod.getSmdResourceId()));
+			for(int modId : mods) {
+				String mod = String.valueOf(modId);
+				if(!approvedMods.contains(mod)) illegalMods.add(modId);
+			}
+		} else {
+			SpaceGuard.getInstance().logWarning("Approved client mods list is null or empty in config, so we can't detect illegal client mods!");
+//			NoticeManager.addNotice(3, GroupManager.getStaffGroup(), "Approved client mods list is null or empty in config, so we can't detect illegal client mods!");
+		}
+		return illegalMods;
+	}
+
+	public static void kickPlayerForIllegalMods(PlayerState playerState, List<Integer> mods) {
+		try {
+			GameServer.getServerState().getController().enqueueAdminCommand(GameServer.getServerState().getAdminLocalClient(), AdminCommands.KICK_REASON, AdminCommands.packParameters(AdminCommands.KICK, "Illegal client mods detected: " + mods.toString()));
+		} catch(Exception exception) {
+			SpaceGuard.getInstance().logException("An error occurred while kicking player " + playerState.getName(), exception);
+		}
+	}
+
+	public static void kickPlayer(String playerName, String reason) {
+		try {
+			System.out.println("Kicking player " + playerName + " for reason: " + reason);
+			SpaceGuard.logDiscordMessage("Kicking player " + playerName + " for reason: " + reason);
+			GameServer.getServerState().getController().enqueueAdminCommand(GameServer.getServerState().getAdminLocalClient(), AdminCommands.KICK_REASON, AdminCommands.packParameters(AdminCommands.KICK, reason));
+		} catch(Exception exception) {
+			SpaceGuard.getInstance().logException("An error occurred while kicking player " + playerName, exception);
+		}
 	}
 }

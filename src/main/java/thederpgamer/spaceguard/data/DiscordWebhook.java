@@ -16,7 +16,7 @@ import java.util.Set;
 /**
  * Class used to execute Discord Webhooks with low effort
  */
-public class DiscordWebhook {
+public final class DiscordWebhook {
 
 	private final String url;
 	private String content;

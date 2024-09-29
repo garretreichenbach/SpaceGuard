@@ -45,8 +45,9 @@ public class GlobalBanCommand implements CommandInterface {
 				PlayerState target = GameServer.getServerState().getPlayerFromName(args[0]);
 				if(target == null) {
 					PlayerData playerData = SecurityManager.getPlayer(args[0]);
-				}
-				else {
+					SecurityManager.globalBanPlayer(playerData);
+					PlayerUtils.sendMessage(sender, "Successfully banned player \"" + args[0] + "\" globally.");
+				} else {
 					if(target.isAdmin()) PlayerUtils.sendMessage(sender, "[ERROR]: You cannot ban an admin.");
 					else {
 						PlayerData playerData = SecurityManager.getPlayer(target);
