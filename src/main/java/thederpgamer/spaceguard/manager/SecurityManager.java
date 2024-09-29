@@ -208,6 +208,7 @@ public final class SecurityManager {
 				for(String ip : player.getKnownIPs()) GameServer.getServerState().getController().addBannedIp("Server", ip, -1);
 				GameServer.getServerState().getController().addBannedAccount("Server", player.getAccountName(), -1);
 				GameServer.getServerState().getController().addBannedName("Server", player.getPlayerName(), -1);
+				kickPlayer(player.getPlayerName(), "You have been banned from this server.");
 			} catch(Exception exception) {
 				SpaceGuard.getInstance().logException("An error occurred while banning player " + player.getPlayerName(), exception);
 			}
