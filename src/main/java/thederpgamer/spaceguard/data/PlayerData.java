@@ -8,48 +8,42 @@ import org.schema.schine.network.RegisteredClientOnServer;
 import thederpgamer.spaceguard.SpaceGuard;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
- * [Description]
+ * Storage class for player data.
  *
  * @author TheDerpGamer
  */
 public class PlayerData implements JsonSerializer {
 
+	private static final byte VERSION = 2;
 	private String accountName;
 	private String playerName;
-	private final List<String> knownIPs = new ArrayList<>();
-	private final List<String> knownAlts = new ArrayList<>();
-	private long hardwareID;
+	private final Set<String> knownIPs = new HashSet<>();
+	private final Set<String> knownAlts = new HashSet<>();
+	private final Set<Long> hardwareIDs = new HashSet<>();
 
 	public static PlayerData createDefault(PlayerState playerState) {
-		List<String> knownIPs = new ArrayList<>();
-		knownIPs.add(playerState.getIp());
-		List<String> knownAlts = new ArrayList<>();
-		knownAlts.add(playerState.getName());
-		PlayerData playerData = new PlayerData(playerState.getStarmadeName(), playerState.getName(), knownIPs, knownAlts);
+		PlayerData playerData = new PlayerData(playerState.getStarmadeName(), playerState.getName(), playerState.getIp());
 		PersistentObjectUtil.addObject(SpaceGuard.getInstance().getSkeleton(), playerData);
 		PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
 		return playerData;
 	}
 
 	public static PlayerData createDefault(RegisteredClientOnServer client) {
-		List<String> knownIPs = new ArrayList<>();
-		knownIPs.add(client.getIp());
-		List<String> knownAlts = new ArrayList<>();
-		knownAlts.add(client.getPlayerName());
-		PlayerData playerData = new PlayerData(client.getStarmadeName(), client.getPlayerName(), knownIPs, knownAlts);
+		PlayerData playerData = new PlayerData(client.getStarmadeName(), client.getPlayerName(), client.getIp());
 		PersistentObjectUtil.addObject(SpaceGuard.getInstance().getSkeleton(), playerData);
 		PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
 		return playerData;
 	}
 
-	private PlayerData(String accountName, String playerName, List<String> knownIPs, List<String> knownAlts) {
+	private PlayerData(String accountName, String playerName, String ip) {
 		this.accountName = accountName;
 		this.playerName = playerName;
-		this.knownIPs.addAll(knownIPs);
-		this.knownAlts.addAll(knownAlts);
+		addIP(ip);
 	}
 
 	public String getAccountName() {
@@ -60,29 +54,29 @@ public class PlayerData implements JsonSerializer {
 		return playerName;
 	}
 
-	public List<String> getKnownIPs() {
+	public Set<String> getKnownIPs() {
 		return knownIPs;
 	}
 
 	public void addIP(String ip) {
 		if(ip.startsWith("/")) ip = ip.substring(1);
-		if(!knownIPs.contains(ip)) knownIPs.add(ip);
+		knownIPs.add(ip);
 	}
 
-	public List<String> getKnownAlts() {
+	public Set<String> getKnownAlts() {
 		return knownAlts;
 	}
 
 	public void addAlt(String playerName) {
-		if(!knownAlts.contains(playerName)) knownAlts.add(playerName);
+		knownAlts.add(playerName);
 	}
 
-	public void assignHardwareID(long hardwareID) {
-		this.hardwareID = Math.abs(hardwareID);
+	public void addHardwareID(long hardwareID) {
+		hardwareIDs.add(Math.abs(hardwareID));
 	}
 
-	public long getHardwareID() {
-		return hardwareID;
+	public Set<Long> getHardwareIDs() {
+		return hardwareIDs;
 	}
 
 	@Override
@@ -93,11 +87,12 @@ public class PlayerData implements JsonSerializer {
 	@Override
 	public JSONObject serialize() {
 		JSONObject data = new JSONObject();
+		data.put("version", VERSION);
 		data.put("accountName", accountName);
 		data.put("playerName", playerName);
 		data.put("knownIPs", knownIPs);
 		data.put("knownAlts", knownAlts);
-		data.put("hardwareID", hardwareID);
+		data.put("hardwareIDs", hardwareIDs);
 		return data;
 	}
 
@@ -111,6 +106,14 @@ public class PlayerData implements JsonSerializer {
 		for(int i = 0; i < ipArray.length(); i ++) knownIPs.add(ipArray.getString(i));
 		JSONArray altArray = data.getJSONArray("knownAlts");
 		for(int i = 0; i < altArray.length(); i ++) knownAlts.add(altArray.getString(i));
-		hardwareID = data.getLong("hardwareID");
+		if(data.has("hardwareID") && !data.has("version")) { //Version 1
+			hardwareIDs.add(data.getLong("hardwareID"));
+		} else if(data.has("version")) { //Version >= 2
+			byte version = (byte) data.getInt("version");
+			if(version == 2) {
+				JSONArray hardwareArray = data.getJSONArray("hardwareIDs");
+				for(int i = 0; i < hardwareArray.length(); i ++) hardwareIDs.add(hardwareArray.getLong(i));
+			}
+		}
 	}
 }

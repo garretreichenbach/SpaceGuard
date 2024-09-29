@@ -1,11 +1,5 @@
 package thederpgamer.spaceguard.data;
 
-/**
- * [Description]
- *
- * @author TheDerpGamer
- */
-
 import javax.net.ssl.HttpsURLConnection;
 import java.awt.Color;
 import java.io.IOException;

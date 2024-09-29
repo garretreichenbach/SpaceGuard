@@ -5,6 +5,7 @@ import api.mod.config.PersistentObjectUtil;
 import api.network.packets.PacketUtil;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONObject;
+import org.lwjgl.Sys;
 import org.schema.game.common.data.player.PlayerState;
 import org.schema.game.server.data.GameServerState;
 import org.schema.game.server.data.PlayerAccountEntrySet;
@@ -29,7 +30,7 @@ import java.util.*;
  *
  * @author TheDerpGamer
  */
-public class SecurityManager {
+public final class SecurityManager {
 
 	/**
 	 * Checks a player's data to see if they are allowed to log in
@@ -40,15 +41,14 @@ public class SecurityManager {
 	public static int checkPlayer(PlayerData playerData) {
 		if(checkIfPlayerIsBanned(playerData)) return Login.LoginCode.ERROR_YOU_ARE_BANNED.code;
 		if(isAnyAltsAdmin(playerData)) return -1;
-		List<String> knownIPs = playerData.getKnownIPs();
 		//Check for VPNs
-		for(String ip : knownIPs) {
+		for(String ip : playerData.getKnownIPs()) {
 			if(!ip.contains("127.0.0.1") && !ip.contains("localhost")) {
 				boolean[] vpnData = checkIP(ip);
 				if(vpnData != null) {
-					if(vpnData[0] && ConfigManager.getMainConfig().getBoolean("block_vpn")) return Login.LoginCode.ERROR_ACCESS_DENIED.code;
-					if(vpnData[1] && ConfigManager.getMainConfig().getBoolean("block_proxy")) return Login.LoginCode.ERROR_ACCESS_DENIED.code;
-					if(vpnData[2] && ConfigManager.getMainConfig().getBoolean("block_tor")) return Login.LoginCode.ERROR_ACCESS_DENIED.code;
+					if(vpnData[0] && ConfigManager.getMainConfig().getBoolean("block_vpn")) return Login.LoginCode.ERROR_VPN.code;
+					if(vpnData[1] && ConfigManager.getMainConfig().getBoolean("block_proxy")) return Login.LoginCode.ERROR_PROXY.code;
+					if(vpnData[2] && ConfigManager.getMainConfig().getBoolean("block_tor")) return Login.LoginCode.ERROR_TOR.code;
 				}
 			}
 		}
@@ -62,7 +62,7 @@ public class SecurityManager {
 						player.addAlt(playerData.getPlayerName());
 						playerData.addAlt(player.getPlayerName());
 						PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
-						return Login.LoginCode.ERROR_ACCESS_DENIED.code;
+						return Login.LoginCode.ERROR_NO_ALTS.code;
 					}
 				}
 			}
@@ -71,14 +71,15 @@ public class SecurityManager {
 
 		if(ConfigManager.getMainConfig().getBoolean("check_hardware_ids")) {
 			//Check hardware IDs
-			long hardwareID = playerData.getHardwareID();
-			if(hardwareID != 0) {
-				for(PlayerData player : getAllPlayers()) {
-					if(player.getHardwareID() == hardwareID && !player.getPlayerName().equals(playerData.getPlayerName())) {
-						player.addAlt(playerData.getPlayerName());
-						playerData.addAlt(player.getPlayerName());
-						PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
-						return Login.LoginCode.ERROR_ACCESS_DENIED.code;
+			for(long hardwareID : playerData.getHardwareIDs()) {
+				if(hardwareID != 0) {
+					for(PlayerData player : getAllPlayers()) {
+						if(player.getHardwareIDs().contains(hardwareID) && !player.getPlayerName().equals(playerData.getPlayerName())) {
+							player.addAlt(playerData.getPlayerName());
+							playerData.addAlt(player.getPlayerName());
+							PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
+							return Login.LoginCode.ERROR_NO_ALTS.code;
+						}
 					}
 				}
 			}
@@ -159,21 +160,27 @@ public class SecurityManager {
 	private static HashSet<PlayerData> getPlayersWithMatchingData(PlayerData playerData) {
 		HashSet<PlayerData> matchingPlayers = new HashSet<>();
 		for(PlayerData pd : getAllPlayers()) {
-			if(playerData.getHardwareID() == pd.getHardwareID()) matchingPlayers.add(playerData);
-			else {
-				List<String> knownIPs = playerData.getKnownIPs();
-				List<String> knownAlts = playerData.getKnownAlts();
-				for(String ip : knownIPs) {
-					if(pd.getKnownIPs().contains(ip)) {
-						matchingPlayers.add(pd);
-						break;
-					}
+			Set<Long> hardwareIDs = pd.getHardwareIDs();
+			Set<String> knownIPs = pd.getKnownIPs();
+			Set<String> knownAlts = pd.getKnownAlts();
+			for(long hardwareID : hardwareIDs) {
+				if(playerData.getHardwareIDs().contains(hardwareID)) {
+					matchingPlayers.add(pd);
+					break;
 				}
-				for(String alt : knownAlts) {
-					if(pd.getKnownAlts().contains(alt)) {
-						matchingPlayers.add(pd);
-						break;
-					}
+			}
+
+			for(String ip : knownIPs) {
+				if(playerData.getKnownIPs().contains(ip)) {
+					matchingPlayers.add(pd);
+					break;
+				}
+			}
+
+			for(String alt : knownAlts) {
+				if(playerData.getKnownAlts().contains(alt)) {
+					matchingPlayers.add(pd);
+					break;
 				}
 			}
 		}
@@ -181,52 +188,15 @@ public class SecurityManager {
 	}
 
 	private static void sendHardwareInfoToServer() {
-		List<String> macAddresses = new ArrayList<>();
-		try {
-			Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
-			while(networkInterfaces.hasMoreElements()) {
-				NetworkInterface networkInterface = networkInterfaces.nextElement();
-				if(!networkInterface.isLoopback()) {
-					byte[] mac = networkInterface.getHardwareAddress();
-					if(mac != null) {
-						StringBuilder sb = new StringBuilder();
-						for(int i = 0; i < mac.length; i++) sb.append(String.format("%02X%s", mac[i], (i < mac.length - 1) ? "-" : ""));
-						macAddresses.add(sb.toString());
-					}
-				}
-			}
-		} catch(SocketException exception) {
-			SpaceGuard.getInstance().logException("An error occurred while getting MAC address", exception);
-		}
-
-		try {
-			String vendor = System.getenv("PROCESSOR_IDENTIFIER");
-			String processorID = System.getenv("PROCESSOR_IDENTIFIER");
-			int processors = Runtime.getRuntime().availableProcessors();
-			String os = System.getProperty("os.name");
-			String osVersion = System.getProperty("os.version");
-			String osArch = System.getProperty("os.arch");
-			byte[] data = (vendor + processorID + processors + os + osVersion + osArch).getBytes(StandardCharsets.UTF_8);
-			PacketUtil.sendPacketToServer(new SendHardwareInfoToServerPacket(data));
-		} catch(Exception exception) {
-			SpaceGuard.getInstance().logException("An error occurred while sending hardware info to server", exception);
-		}
+		byte[] hardwareInfo = getHardwareInfo();
+		if(hardwareInfo != null) PacketUtil.sendPacketToServer(new SendHardwareInfoToServerPacket(hardwareInfo));
 	}
 
 	public static void assignUniqueID(PlayerState playerState, byte[] data) {
 		PlayerData playerData = getPlayer(playerState);
-		if(playerData.getHardwareID() == 0) { //First time logging in
-			long newID = Math.abs(Arrays.hashCode(data)) + Math.abs(Objects.requireNonNull(getServerUUID(playerState.getState())).hashCode());
-			playerData.assignHardwareID(newID);
-			PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
-		} else {
-			long currentID = playerData.getHardwareID();
-			long newID = Math.abs(Arrays.hashCode(data)) + Math.abs(Objects.requireNonNull(getServerUUID(playerState.getState())).hashCode());
-			if(currentID != newID) {
-				playerData.assignHardwareID(newID);
-				PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
-			}
-		}
+		long id = Math.abs(Arrays.hashCode(data)) + Math.abs(Objects.requireNonNull(getServerUUID(playerState.getState())).hashCode());
+		playerData.addHardwareID(id);
+		PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
 	}
 
 	public static boolean checkIfPlayerIsBanned(PlayerData playerData) {
@@ -279,5 +249,40 @@ public class SecurityManager {
 			if(GameServer.getServerState().isAdmin(playerName)) return true;
 		}
 		return false;
+	}
+
+	private static byte[] getHardwareInfo() {
+		List<String> macAddresses = new ArrayList<>();
+		try {
+			Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
+			while(networkInterfaces.hasMoreElements()) {
+				NetworkInterface networkInterface = networkInterfaces.nextElement();
+				if(!networkInterface.isLoopback()) {
+					byte[] mac = networkInterface.getHardwareAddress();
+					if(mac != null) {
+						StringBuilder sb = new StringBuilder();
+						for(int i = 0; i < mac.length; i++) sb.append(String.format("%02X%s", mac[i], (i < mac.length - 1) ? "-" : ""));
+						macAddresses.add(sb.toString());
+					}
+				}
+			}
+		} catch(SocketException exception) {
+			SpaceGuard.getInstance().logException("An error occurred while getting MAC address", exception);
+		}
+
+		try {
+			String processorID = System.getenv("PROCESSOR_IDENTIFIER");
+			String processorArch = System.getenv("PROCESSOR_ARCHITECTURE");
+			int processors = Runtime.getRuntime().availableProcessors();
+			String os = System.getProperty("os.name");
+			String osArch = System.getProperty("os.arch");
+//			String osVersion = System.getProperty("os.version"); //This is changed by the system upon updating, so it's not a good idea to use it
+			String userName = System.getProperty("user.name"); //This technically can be changed by the user, but it's usually a pain in the ass to do so
+			String userHome = System.getProperty("user.home"); //This technically can be changed by the user, but it's usually a pain in the ass to do so
+			return (macAddresses + processorID + processorArch + processors + os + osArch + userName + userHome).getBytes(StandardCharsets.UTF_8);
+		} catch(Exception exception) {
+			SpaceGuard.getInstance().logException("An error occurred while sending hardware info to server", exception);
+		}
+		return null;
 	}
 }
