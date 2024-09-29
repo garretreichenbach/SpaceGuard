@@ -46,9 +46,9 @@ public class SecurityManager {
 			if(!ip.contains("127.0.0.1") && !ip.contains("localhost")) {
 				boolean[] vpnData = checkIP(ip);
 				if(vpnData != null) {
-					if(vpnData[0] && ConfigManager.getMainConfig().getBoolean("block_vpn")) return Login.LoginCode.ERROR_VPN.code;
-					if(vpnData[1] && ConfigManager.getMainConfig().getBoolean("block_proxy")) return Login.LoginCode.ERROR_PROXY.code;
-					if(vpnData[2] && ConfigManager.getMainConfig().getBoolean("block_tor")) return Login.LoginCode.ERROR_TOR.code;
+					if(vpnData[0] && ConfigManager.getMainConfig().getBoolean("block_vpn")) return Login.LoginCode.ERROR_ACCESS_DENIED.code;
+					if(vpnData[1] && ConfigManager.getMainConfig().getBoolean("block_proxy")) return Login.LoginCode.ERROR_ACCESS_DENIED.code;
+					if(vpnData[2] && ConfigManager.getMainConfig().getBoolean("block_tor")) return Login.LoginCode.ERROR_ACCESS_DENIED.code;
 				}
 			}
 		}
@@ -62,7 +62,7 @@ public class SecurityManager {
 						player.addAlt(playerData.getPlayerName());
 						playerData.addAlt(player.getPlayerName());
 						PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
-						return Login.LoginCode.ERROR_NO_ALTS.code;
+						return Login.LoginCode.ERROR_ACCESS_DENIED.code;
 					}
 				}
 			}
@@ -78,7 +78,7 @@ public class SecurityManager {
 						player.addAlt(playerData.getPlayerName());
 						playerData.addAlt(player.getPlayerName());
 						PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
-						return Login.LoginCode.ERROR_NO_ALTS.code;
+						return Login.LoginCode.ERROR_ACCESS_DENIED.code;
 					}
 				}
 			}

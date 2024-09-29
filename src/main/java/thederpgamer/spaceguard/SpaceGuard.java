@@ -23,16 +23,13 @@ public class SpaceGuard extends StarMod {
 
 	//Instance
 	private static SpaceGuard instance;
-
 	public SpaceGuard() {
 		instance = this;
 	}
-
 	public static SpaceGuard getInstance() {
 		return instance;
 	}
-
-	private static final String[] overwriteClasses = {"Login"};
+	private static final String[] overwriteClasses = {};
 
 	@Override
 	public void onEnable() {
