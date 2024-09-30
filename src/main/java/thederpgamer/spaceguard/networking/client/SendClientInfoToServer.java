@@ -7,13 +7,14 @@ import org.schema.game.common.data.player.PlayerState;
 import thederpgamer.spaceguard.manager.SecurityManager;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 public final class SendClientInfoToServer extends Packet {
 
-	private byte[] data;
-	private Set<Integer> mods;
+	private byte[] data = new byte[0];
+	private Set<Integer> mods = new HashSet<>();
 
 	public SendClientInfoToServer(byte[] data, Set<Integer> mods) {
 		this.data = data;
