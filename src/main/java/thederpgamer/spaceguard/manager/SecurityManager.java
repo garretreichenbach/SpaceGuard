@@ -57,7 +57,7 @@ public final class SecurityManager {
 
 		if(ConfigManager.getMainConfig().getBoolean("block_alts")) {
 			HashSet<PlayerData> matchingPlayers = getPlayersWithMatchingData(playerData);
-			if(!matchingPlayers.isEmpty()) {
+			if(matchingPlayers.size() > 1) {
 				for(PlayerData player : matchingPlayers) {
 					player.addAlt(playerData.getPlayerName());
 					playerData.addAlt(player.getPlayerName());
