@@ -7,6 +7,7 @@ import org.schema.game.common.data.player.PlayerState;
 import org.schema.schine.network.RegisteredClientOnServer;
 import thederpgamer.spaceguard.SpaceGuard;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -17,12 +18,19 @@ import java.util.Set;
  */
 public final class PlayerData implements JsonSerializer {
 
-	private static final byte VERSION = 2;
+	private static final byte VERSION = 3;
+
+	public static final int TRUSTED_ALT = 0;
+	public static final int TRUSTED_VPN = 1;
+	public static final int TRUSTED_PROXY = 2;
+	public static final int TRUSTED_TOR = 3;
+
 	private String accountName;
 	private String playerName;
 	private final Set<String> knownIPs = new HashSet<>();
 	private final Set<String> knownAlts = new HashSet<>();
 	private final Set<Long> hardwareIDs = new HashSet<>();
+	private boolean[] trusted = new boolean[4];
 
 	public static PlayerData createDefault(PlayerState playerState) {
 		PlayerData playerData = new PlayerData(playerState.getStarmadeName(), playerState.getName(), playerState.getIp());
@@ -77,6 +85,18 @@ public final class PlayerData implements JsonSerializer {
 		return hardwareIDs;
 	}
 
+	public boolean isTrusted(int type) {
+		return trusted[type];
+	}
+
+	public void setTrusted(int type, boolean trusted) {
+		this.trusted[type] = trusted;
+	}
+
+	public void setTrustedAll(boolean trusted) {
+		Arrays.fill(this.trusted, trusted);
+	}
+
 	@Override
 	public String toString() {
 		return serialize().toString();
@@ -91,6 +111,7 @@ public final class PlayerData implements JsonSerializer {
 		data.put("knownIPs", knownIPs);
 		data.put("knownAlts", knownAlts);
 		data.put("hardwareIDs", hardwareIDs);
+		data.put("trusted", trusted);
 		return data;
 	}
 
@@ -108,9 +129,13 @@ public final class PlayerData implements JsonSerializer {
 			hardwareIDs.add(data.getLong("hardwareID"));
 		} else if(data.has("version")) { //Version >= 2
 			byte version = (byte) data.getInt("version");
-			if(version == 2) {
+			if(version >= 2) {
 				JSONArray hardwareArray = data.getJSONArray("hardwareIDs");
 				for(int i = 0; i < hardwareArray.length(); i ++) hardwareIDs.add(hardwareArray.getLong(i));
+			}
+			if(version >= 3) {
+				JSONArray trustedArray = data.getJSONArray("trusted");
+				for(int i = 0; i < trustedArray.length(); i ++) trusted[i] = trustedArray.getBoolean(i);
 			}
 		}
 	}

@@ -48,14 +48,14 @@ public final class SecurityManager {
 			if(!ip.contains("127.0.0.1") && !ip.contains("localhost")) {
 				boolean[] vpnData = checkIP(ip);
 				if(vpnData != null) {
-					if(vpnData[0] && ConfigManager.getMainConfig().getBoolean("block_vpn")) return Login.LoginCode.ERROR_VPN.code;
-					if(vpnData[1] && ConfigManager.getMainConfig().getBoolean("block_proxy")) return Login.LoginCode.ERROR_PROXY.code;
-					if(vpnData[2] && ConfigManager.getMainConfig().getBoolean("block_tor")) return Login.LoginCode.ERROR_TOR.code;
+					if(vpnData[0] && ConfigManager.getMainConfig().getBoolean("block_vpn") && !playerData.isTrusted(PlayerData.TRUSTED_VPN)) return Login.LoginCode.ERROR_VPN.code;
+					if(vpnData[1] && ConfigManager.getMainConfig().getBoolean("block_proxy") && !playerData.isTrusted(PlayerData.TRUSTED_PROXY)) return Login.LoginCode.ERROR_PROXY.code;
+					if(vpnData[2] && ConfigManager.getMainConfig().getBoolean("block_tor") && !playerData.isTrusted(PlayerData.TRUSTED_TOR)) return Login.LoginCode.ERROR_TOR.code;
 				}
 			}
 		}
 
-		if(ConfigManager.getMainConfig().getBoolean("block_alts")) {
+		if(ConfigManager.getMainConfig().getBoolean("block_alts") && !playerData.isTrusted(PlayerData.TRUSTED_ALT)) {
 			HashSet<PlayerData> matchingPlayers = getPlayersWithMatchingData(playerData);
 			if(matchingPlayers.size() > 1) {
 				for(PlayerData player : matchingPlayers) {

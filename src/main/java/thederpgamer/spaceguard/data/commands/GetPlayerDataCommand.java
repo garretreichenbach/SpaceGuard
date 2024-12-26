@@ -44,8 +44,11 @@ public class GetPlayerDataCommand implements CommandInterface {
 				PlayerData playerData = SecurityManager.getPlayer(args[0]);
 				if(playerData == null) PlayerUtils.sendMessage(sender, "[ERROR]: Player \"" + args[0] + "\" not found.");
 				else PlayerUtils.sendMessage(sender, "Player Data for \"" + playerData.getPlayerName() + "\":\n" + playerData);
-				return true;
-			} catch(Exception ignored) {}
+			} catch(Exception exception) {
+				SpaceGuard.getInstance().logException("An error occurred while attempting to retrieve player data for \"" + args[0] + "\"", exception);
+				PlayerUtils.sendMessage(sender, "[ERROR]: An error occurred while attempting to retrieve player data for \"" + args[0] + "\"");
+			}
+			return true;
 		}
 		return false;
 	}

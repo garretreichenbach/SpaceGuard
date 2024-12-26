@@ -8,6 +8,7 @@ import org.apache.commons.io.IOUtils;
 import thederpgamer.spaceguard.data.DiscordWebhook;
 import thederpgamer.spaceguard.data.commands.GetPlayerDataCommand;
 import thederpgamer.spaceguard.data.commands.GlobalBanCommand;
+import thederpgamer.spaceguard.data.commands.TrustPlayerCommand;
 import thederpgamer.spaceguard.manager.ConfigManager;
 import thederpgamer.spaceguard.manager.EventManager;
 import thederpgamer.spaceguard.manager.PacketManager;
@@ -101,6 +102,7 @@ public final class SpaceGuard extends StarMod {
 	private void registerCommands() {
 		StarLoader.registerCommand(new GlobalBanCommand());
 		StarLoader.registerCommand(new GetPlayerDataCommand());
+		StarLoader.registerCommand(new TrustPlayerCommand());
 	}
 
 	private void registerPackets() {
@@ -108,7 +110,7 @@ public final class SpaceGuard extends StarMod {
 	}
 
 	public static void logDiscordMessage(String message) {
-		if(ConfigManager.getMainConfig().getString("discord_webhook_url").equals("<WEBHOOK_URL>")) SpaceGuard.getInstance().logWarning("Discord webhook URL not set. Please set the WEBHOOK_URL in the config.");
+		if(ConfigManager.getMainConfig().getString("discord_webhook_url").equals("<WEBHOOK_URL>")) instance.logWarning("Discord webhook URL not set. Please set the WEBHOOK_URL in the config.");
 		else {
 			try {
 				DiscordWebhook webhook = new DiscordWebhook(ConfigManager.getMainConfig().getString("discord_webhook_url"));
