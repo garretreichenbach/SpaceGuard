@@ -3,8 +3,8 @@ plugins {
 	id 'application'
 }
 
-sourceCompatibility = 1.7
-targetCompatibility = 1.7
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
 
 def starmadeDirectory = project.property("starmade_root")
 def modName = project.property("mod_name")
@@ -19,7 +19,7 @@ repositories {
 dependencies {
 	implementation(files(starmadeDirectory + "StarMade.jar"))
 	implementation(fileTree(dir: (starmadeDirectory + "lib"), include: "*.jar"))
-//	implementation 'com.github.oshi:oshi-core:6.6.4'
+	implementation 'com.github.oshi:oshi-core:6.6.4'
 }
 
 compileJava.options.encoding = 'UTF-8'
@@ -41,8 +41,11 @@ jar {
 	manifest.attributes('Main-Class': mainClassName)
 	from {
 		configurations.runtimeClasspath.collect {
-			if(!it.getPath().contains("StarMade") && it.getName().endsWith(".jar")) it.isDirectory() ? it : zipTree(it)
-			else return null;
+			if(!it.getPath().contains("StarMade") && it.getName().endsWith(".jar")) {
+				it.isDirectory() ? it : zipTree(it)
+			} else {
+				return null;
+			}
 		}
 	}
 }

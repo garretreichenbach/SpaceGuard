@@ -1,7 +1,7 @@
-package thederpgamer.spaceguard.utils;
+package videogoose.spaceguard.utils;
 
 import api.common.GameCommon;
-import thederpgamer.spaceguard.SpaceGuard;
+import videogoose.spaceguard.SpaceGuard;
 
 import java.io.File;
 

@@ -1,7 +1,7 @@
-package thederpgamer.spaceguard.manager;
+package videogoose.spaceguard.manager;
 
 import api.mod.config.FileConfiguration;
-import thederpgamer.spaceguard.SpaceGuard;
+import videogoose.spaceguard.SpaceGuard;
 
 public final class ConfigManager {
 

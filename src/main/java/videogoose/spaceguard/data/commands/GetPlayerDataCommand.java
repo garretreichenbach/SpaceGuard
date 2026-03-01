@@ -1,20 +1,13 @@
-package thederpgamer.spaceguard.data.commands;
+package videogoose.spaceguard.data.commands;
 
 import api.mod.StarMod;
 import api.utils.game.PlayerUtils;
 import api.utils.game.chat.CommandInterface;
 import org.schema.game.common.data.player.PlayerState;
-import thederpgamer.spaceguard.SpaceGuard;
-import thederpgamer.spaceguard.data.PlayerData;
-import thederpgamer.spaceguard.manager.SecurityManager;
+import videogoose.spaceguard.SpaceGuard;
+import videogoose.spaceguard.data.PlayerData;
+import videogoose.spaceguard.manager.SecurityManager;
 
-import javax.annotation.Nullable;
-
-/**
- * [Description]
- *
- * @author TheDerpGamer
- */
 public class GetPlayerDataCommand implements CommandInterface {
 	@Override
 	public String getCommand() {
@@ -28,8 +21,7 @@ public class GetPlayerDataCommand implements CommandInterface {
 
 	@Override
 	public String getDescription() {
-		return "Displays security related data for the specified player.\n" +
-				"- /%COMMAND% <player>: Displays security data for the specified player.";
+		return "Displays security related data for the specified player.\n" + "- /%COMMAND% <player>: Displays security data for the specified player.";
 	}
 
 	@Override
@@ -42,8 +34,11 @@ public class GetPlayerDataCommand implements CommandInterface {
 		if(args != null && args.length == 1) {
 			try {
 				PlayerData playerData = SecurityManager.getPlayer(args[0]);
-				if(playerData == null) PlayerUtils.sendMessage(sender, "[ERROR]: Player \"" + args[0] + "\" not found.");
-				else PlayerUtils.sendMessage(sender, "Player Data for \"" + playerData.getPlayerName() + "\":\n" + playerData);
+				if(playerData == null) {
+					PlayerUtils.sendMessage(sender, "[ERROR]: Player \"" + args[0] + "\" not found.");
+				} else {
+					PlayerUtils.sendMessage(sender, "Player Data for \"" + playerData.getPlayerName() + "\":\n" + playerData);
+				}
 			} catch(Exception exception) {
 				SpaceGuard.getInstance().logException("An error occurred while attempting to retrieve player data for \"" + args[0] + "\"", exception);
 				PlayerUtils.sendMessage(sender, "[ERROR]: An error occurred while attempting to retrieve player data for \"" + args[0] + "\"");
@@ -54,7 +49,7 @@ public class GetPlayerDataCommand implements CommandInterface {
 	}
 
 	@Override
-	public void serverAction(@Nullable PlayerState sender, String[] args) {
+	public void serverAction(PlayerState sender, String[] args) {
 
 	}
 

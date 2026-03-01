@@ -1,17 +1,14 @@
-package thederpgamer.spaceguard.data;
+package videogoose.spaceguard.data;
 
 import javax.net.ssl.HttpsURLConnection;
-import java.awt.Color;
+import java.awt.*;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Array;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Class used to execute Discord Webhooks with low effort
@@ -19,11 +16,11 @@ import java.util.Set;
 public final class DiscordWebhook {
 
 	private final String url;
+	private final List<EmbedObject> embeds = new ArrayList<>();
 	private String content;
 	private String username;
 	private String avatarUrl;
 	private boolean tts;
-	private final List<EmbedObject> embeds = new ArrayList<>();
 
 	/**
 	 * Constructs a new DiscordWebhook instance
@@ -157,31 +154,50 @@ public final class DiscordWebhook {
 	}
 
 	public static class EmbedObject {
+		private final List<Field> fields = new ArrayList<>();
 		private String title;
 		private String description;
 		private String url;
 		private Color color;
-
 		private Footer footer;
 		private Thumbnail thumbnail;
 		private Image image;
 		private Author author;
-		private final List<Field> fields = new ArrayList<>();
 
 		public String getTitle() {
 			return title;
+		}
+
+		public EmbedObject setTitle(String title) {
+			this.title = title;
+			return this;
 		}
 
 		public String getDescription() {
 			return description;
 		}
 
+		public EmbedObject setDescription(String description) {
+			this.description = description;
+			return this;
+		}
+
 		public String getUrl() {
 			return url;
 		}
 
+		public EmbedObject setUrl(String url) {
+			this.url = url;
+			return this;
+		}
+
 		public Color getColor() {
 			return color;
+		}
+
+		public EmbedObject setColor(Color color) {
+			this.color = color;
+			return this;
 		}
 
 		public Footer getFooter() {
@@ -192,8 +208,18 @@ public final class DiscordWebhook {
 			return thumbnail;
 		}
 
+		public EmbedObject setThumbnail(String url) {
+			thumbnail = new Thumbnail(url);
+			return this;
+		}
+
 		public Image getImage() {
 			return image;
+		}
+
+		public EmbedObject setImage(String url) {
+			image = new Image(url);
+			return this;
 		}
 
 		public Author getAuthor() {
@@ -204,38 +230,8 @@ public final class DiscordWebhook {
 			return fields;
 		}
 
-		public EmbedObject setTitle(String title) {
-			this.title = title;
-			return this;
-		}
-
-		public EmbedObject setDescription(String description) {
-			this.description = description;
-			return this;
-		}
-
-		public EmbedObject setUrl(String url) {
-			this.url = url;
-			return this;
-		}
-
-		public EmbedObject setColor(Color color) {
-			this.color = color;
-			return this;
-		}
-
 		public EmbedObject setFooter(String text, String icon) {
 			footer = new Footer(text, icon);
-			return this;
-		}
-
-		public EmbedObject setThumbnail(String url) {
-			thumbnail = new Thumbnail(url);
-			return this;
-		}
-
-		public EmbedObject setImage(String url) {
-			image = new Image(url);
 			return this;
 		}
 

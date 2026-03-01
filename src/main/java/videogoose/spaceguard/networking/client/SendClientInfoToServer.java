@@ -1,10 +1,10 @@
-package thederpgamer.spaceguard.networking.client;
+package videogoose.spaceguard.networking.client;
 
 import api.network.Packet;
 import api.network.PacketReadBuffer;
 import api.network.PacketWriteBuffer;
 import org.schema.game.common.data.player.PlayerState;
-import thederpgamer.spaceguard.manager.SecurityManager;
+import videogoose.spaceguard.manager.SecurityManager;
 
 import java.io.IOException;
 import java.util.HashSet;

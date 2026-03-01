@@ -1,36 +1,35 @@
-package thederpgamer.spaceguard.data;
+package videogoose.spaceguard.data;
 
 import api.mod.config.PersistentObjectUtil;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.schema.game.common.data.player.PlayerState;
 import org.schema.schine.network.RegisteredClientOnServer;
-import thederpgamer.spaceguard.SpaceGuard;
+import videogoose.spaceguard.SpaceGuard;
 
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Storage class for player data.
- *
- * @author TheDerpGamer
- */
 public final class PlayerData implements JsonSerializer {
-
-	private static final byte VERSION = 3;
 
 	public static final int TRUSTED_ALT = 0;
 	public static final int TRUSTED_VPN = 1;
 	public static final int TRUSTED_PROXY = 2;
 	public static final int TRUSTED_TOR = 3;
-
-	private String accountName;
-	private String playerName;
+	private static final byte VERSION = 3;
 	private final Set<String> knownIPs = new HashSet<>();
 	private final Set<String> knownAlts = new HashSet<>();
 	private final Set<Long> hardwareIDs = new HashSet<>();
-	private boolean[] trusted = new boolean[4];
+	private String accountName;
+	private String playerName;
+	private final boolean[] trusted = new boolean[4];
+
+	private PlayerData(String accountName, String playerName, String ip) {
+		this.accountName = accountName;
+		this.playerName = playerName;
+		addIP(ip);
+	}
 
 	public static PlayerData createDefault(PlayerState playerState) {
 		PlayerData playerData = new PlayerData(playerState.getStarmadeName(), playerState.getName(), playerState.getIp());
@@ -44,12 +43,6 @@ public final class PlayerData implements JsonSerializer {
 		PersistentObjectUtil.addObject(SpaceGuard.getInstance().getSkeleton(), playerData);
 		PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
 		return playerData;
-	}
-
-	private PlayerData(String accountName, String playerName, String ip) {
-		this.accountName = accountName;
-		this.playerName = playerName;
-		addIP(ip);
 	}
 
 	public String getAccountName() {
@@ -122,20 +115,20 @@ public final class PlayerData implements JsonSerializer {
 		accountName = data.getString("accountName");
 		playerName = data.getString("playerName");
 		JSONArray ipArray = data.getJSONArray("knownIPs");
-		for(int i = 0; i < ipArray.length(); i ++) knownIPs.add(ipArray.getString(i));
+		for(int i = 0; i < ipArray.length(); i++) knownIPs.add(ipArray.getString(i));
 		JSONArray altArray = data.getJSONArray("knownAlts");
-		for(int i = 0; i < altArray.length(); i ++) knownAlts.add(altArray.getString(i));
+		for(int i = 0; i < altArray.length(); i++) knownAlts.add(altArray.getString(i));
 		if(data.has("hardwareID") && !data.has("version")) { //Version 1
 			hardwareIDs.add(data.getLong("hardwareID"));
 		} else if(data.has("version")) { //Version >= 2
 			byte version = (byte) data.getInt("version");
 			if(version >= 2) {
 				JSONArray hardwareArray = data.getJSONArray("hardwareIDs");
-				for(int i = 0; i < hardwareArray.length(); i ++) hardwareIDs.add(hardwareArray.getLong(i));
+				for(int i = 0; i < hardwareArray.length(); i++) hardwareIDs.add(hardwareArray.getLong(i));
 			}
 			if(version >= 3) {
 				JSONArray trustedArray = data.getJSONArray("trusted");
-				for(int i = 0; i < trustedArray.length(); i ++) trusted[i] = trustedArray.getBoolean(i);
+				for(int i = 0; i < trustedArray.length(); i++) trusted[i] = trustedArray.getBoolean(i);
 			}
 		}
 	}

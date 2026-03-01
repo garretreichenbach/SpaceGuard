@@ -1,12 +1,7 @@
-package thederpgamer.spaceguard.data;
+package videogoose.spaceguard.data;
 
 import org.json.JSONObject;
 
-/**
- * [Description]
- *
- * @author TheDerpGamer
- */
 public interface JsonSerializer {
 
 	JSONObject serialize();

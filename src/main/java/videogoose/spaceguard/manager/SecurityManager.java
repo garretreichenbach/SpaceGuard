@@ -1,11 +1,10 @@
-package thederpgamer.spaceguard.manager;
+package videogoose.spaceguard.manager;
 
 import api.common.GameServer;
 import api.mod.ModSkeleton;
 import api.mod.StarLoader;
 import api.mod.config.PersistentObjectUtil;
 import api.network.packets.PacketUtil;
-import org.apache.commons.io.IOUtils;
 import org.json.JSONObject;
 import org.schema.game.common.data.player.PlayerState;
 import org.schema.game.server.data.GameServerState;
@@ -14,10 +13,13 @@ import org.schema.game.server.data.admin.AdminCommands;
 import org.schema.schine.network.RegisteredClientOnServer;
 import org.schema.schine.network.StateInterface;
 import org.schema.schine.network.commands.Login;
-import thederpgamer.spaceguard.SpaceGuard;
-import thederpgamer.spaceguard.data.PlayerData;
-import thederpgamer.spaceguard.networking.client.SendClientInfoToServer;
-import thederpgamer.spaceguard.utils.DataUtils;
+import oshi.SystemInfo;
+import oshi.hardware.HardwareAbstractionLayer;
+import oshi.software.os.OperatingSystem;
+import videogoose.spaceguard.SpaceGuard;
+import videogoose.spaceguard.data.PlayerData;
+import videogoose.spaceguard.networking.client.SendClientInfoToServer;
+import videogoose.spaceguard.utils.DataUtils;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -27,11 +29,6 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-/**
- * [Description]
- *
- * @author TheDerpGamer
- */
 public final class SecurityManager {
 
 	/**
@@ -41,16 +38,28 @@ public final class SecurityManager {
 	 * @return -1 if the player can log in, otherwise returns a message explaining why they cannot
 	 */
 	public static int checkPlayer(PlayerData playerData) {
-		if(checkIfPlayerIsBanned(playerData)) return Login.LoginCode.ERROR_YOU_ARE_BANNED.code;
-		if(isAnyAltsAdmin(playerData)) return -1;
+		if(checkIfPlayerIsBanned(playerData)) {
+			return Login.LoginCode.ERROR_YOU_ARE_BANNED.code;
+		}
+
+		if(isAnyAltsAdmin(playerData)) {
+			return -1;
+		}
+
 		//Check for VPNs
 		for(String ip : playerData.getKnownIPs()) {
 			if(!ip.contains("127.0.0.1") && !ip.contains("localhost")) {
 				boolean[] vpnData = checkIP(ip);
 				if(vpnData != null) {
-					if(vpnData[0] && ConfigManager.getMainConfig().getBoolean("block_vpn") && !playerData.isTrusted(PlayerData.TRUSTED_VPN)) return Login.LoginCode.ERROR_VPN.code;
-					if(vpnData[1] && ConfigManager.getMainConfig().getBoolean("block_proxy") && !playerData.isTrusted(PlayerData.TRUSTED_PROXY)) return Login.LoginCode.ERROR_PROXY.code;
-					if(vpnData[2] && ConfigManager.getMainConfig().getBoolean("block_tor") && !playerData.isTrusted(PlayerData.TRUSTED_TOR)) return Login.LoginCode.ERROR_TOR.code;
+					if(vpnData[0] && ConfigManager.getMainConfig().getBoolean("block_vpn") && !playerData.isTrusted(PlayerData.TRUSTED_VPN)) {
+						return Login.LoginCode.ERROR_VPN.code;
+					}
+					if(vpnData[1] && ConfigManager.getMainConfig().getBoolean("block_proxy") && !playerData.isTrusted(PlayerData.TRUSTED_PROXY)) {
+						return Login.LoginCode.ERROR_PROXY.code;
+					}
+					if(vpnData[2] && ConfigManager.getMainConfig().getBoolean("block_tor") && !playerData.isTrusted(PlayerData.TRUSTED_TOR)) {
+						return Login.LoginCode.ERROR_TOR.code;
+					}
 				}
 			}
 		}
@@ -70,18 +79,18 @@ public final class SecurityManager {
 	}
 
 	private static boolean[] checkIP(String ip) {
-		if(ConfigManager.getMainConfig().getString("vpn_checker_api_key").equals("<API_KEY>")) {
+		if("<API_KEY>".equals(ConfigManager.getMainConfig().getString("vpn_checker_api_key"))) {
 			SpaceGuard.getInstance().logWarning("VPN Checker API key not set. Please make an account at https://vpnapi.io/api-documentation and set the API_KEY in the config.");
 			return null;
 		}
 		String url = "https://vpnapi.io/api/" + ip + "?key=" + ConfigManager.getMainConfig().getString("vpn_checker_api_key");
 		try {
-			JSONObject jsonObject = new JSONObject(IOUtils.toString(new URL(url), StandardCharsets.UTF_8));
+			JSONObject jsonObject = new JSONObject(new Scanner(new URL(url).openStream(), String.valueOf(StandardCharsets.UTF_8)).useDelimiter("\\A").next());
 			JSONObject security = jsonObject.getJSONObject("security");
 			boolean vpn = security.getBoolean("vpn");
 			boolean proxy = security.getBoolean("proxy");
 			boolean tor = security.getBoolean("tor");
-			return new boolean[] {vpn, proxy, tor};
+			return new boolean[]{vpn, proxy, tor};
 		} catch(Exception exception) {
 			SpaceGuard.getInstance().logException("An error occurred while checking IP for " + ip, exception);
 			return null;
@@ -126,17 +135,14 @@ public final class SecurityManager {
 	}
 
 	public static void initializeClient() {
-		(new Thread() {
-			@Override
-			public void run() {
-				try {
-					sleep(5000);
-					sendClientInfoToServer();
-				} catch(InterruptedException exception) {
-					SpaceGuard.getInstance().logException("An error occurred while initializing client", exception);
-				}
+		(new Thread(() -> {
+			try {
+				Thread.sleep(5000);
+				sendClientInfoToServer();
+			} catch(InterruptedException exception) {
+				SpaceGuard.getInstance().logException("An error occurred while initializing client", exception);
 			}
-		}).start();
+		})).start();
 	}
 
 	private static HashSet<PlayerData> getPlayersWithMatchingData(PlayerData playerData) {
@@ -173,8 +179,12 @@ public final class SecurityManager {
 		byte[] hardwareInfo = getHardwareInfo();
 		List<ModSkeleton> mods = StarLoader.starMods;
 		Set<Integer> modIds = new HashSet<>();
-		for(int i = 0; i < mods.size(); i++) modIds.add(i);
-		if(hardwareInfo != null) PacketUtil.sendPacketToServer(new SendClientInfoToServer(hardwareInfo, modIds));
+		for(int i = 0; i < mods.size(); i++) {
+			modIds.add(i);
+		}
+		if(hardwareInfo != null) {
+			PacketUtil.sendPacketToServer(new SendClientInfoToServer(hardwareInfo, modIds));
+		}
 	}
 
 	public static void assignUniqueID(PlayerState playerState, byte[] data) {
@@ -186,14 +196,20 @@ public final class SecurityManager {
 
 	public static boolean checkIfPlayerIsBanned(PlayerData playerData) {
 		PlayerAccountEntrySet accounts = GameServer.getServerState().getBlackListedAccounts();
-		if(accounts.containsAndIsValid(playerData.getAccountName())) return true;
+		if(accounts.containsAndIsValid(playerData.getAccountName())) {
+			return true;
+		}
 		PlayerAccountEntrySet ips = GameServer.getServerState().getBlackListedIps();
 		for(String ip : playerData.getKnownIPs()) {
-			if(ips.containsAndIsValid(ip)) return true;
+			if(ips.containsAndIsValid(ip)) {
+				return true;
+			}
 		}
 		PlayerAccountEntrySet names = GameServer.getServerState().getBlackListedNames();
 		for(String alt : playerData.getKnownAlts()) {
-			if(names.containsAndIsValid(alt)) return true;
+			if(names.containsAndIsValid(alt)) {
+				return true;
+			}
 		}
 		return names.containsAndIsValid(playerData.getPlayerName());
 	}
@@ -205,7 +221,9 @@ public final class SecurityManager {
 				player.addAlt(playerData.getPlayerName());
 				playerData.addAlt(player.getPlayerName());
 				PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
-				for(String ip : player.getKnownIPs()) GameServer.getServerState().getController().addBannedIp("Server", ip, -1);
+				for(String ip : player.getKnownIPs()) {
+					GameServer.getServerState().getController().addBannedIp("Server", ip, -1);
+				}
 				GameServer.getServerState().getController().addBannedAccount("Server", player.getAccountName(), -1);
 				GameServer.getServerState().getController().addBannedName("Server", player.getPlayerName(), -1);
 				kickPlayer(player.getPlayerName(), "You have been banned from this server.");
@@ -226,7 +244,9 @@ public final class SecurityManager {
 				writer.write(uuid);
 				writer.close();
 				return uuid;
-			} else return IOUtils.toString(serverSecret.toURI(), StandardCharsets.UTF_8);
+			} else {
+				return new Scanner(serverSecret).useDelimiter("\\A").next();
+			}
 		} catch(Exception exception) {
 			SpaceGuard.getInstance().logException("An error occurred while getting server UUID", exception);
 		}
@@ -241,7 +261,6 @@ public final class SecurityManager {
 	}
 
 	private static byte[] getHardwareInfo() {
-		/* oshi is dumb and doesn't work idk why
 		try {
 			SystemInfo systemInfo = new SystemInfo();
 			OperatingSystem operatingSystem = systemInfo.getOperatingSystem();
@@ -259,7 +278,6 @@ public final class SecurityManager {
 		} catch(Exception exception) {
 			SpaceGuard.getInstance().logException("An error occurred while getting hardware info", exception);
 		}
-		 */
 		List<String> macAddresses = new ArrayList<>();
 		try {
 			Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
@@ -269,7 +287,9 @@ public final class SecurityManager {
 					byte[] mac = networkInterface.getHardwareAddress();
 					if(mac != null) {
 						StringBuilder sb = new StringBuilder();
-						for(int i = 0; i < mac.length; i++) sb.append(String.format("%02X%s", mac[i], (i < mac.length - 1) ? "-" : ""));
+						for(int i = 0; i < mac.length; i++) {
+							sb.append(String.format("%02X%s", mac[i], (i < mac.length - 1) ? "-" : ""));
+						}
 						macAddresses.add(sb.toString());
 					}
 				}
@@ -277,6 +297,7 @@ public final class SecurityManager {
 		} catch(SocketException exception) {
 			SpaceGuard.getInstance().logException("An error occurred while getting MAC address", exception);
 		}
+
 		try {
 			String processorID = System.getenv("PROCESSOR_IDENTIFIER");
 			String processorArch = System.getenv("PROCESSOR_ARCHITECTURE");
@@ -297,7 +318,8 @@ public final class SecurityManager {
 		List<Integer> illegalMods = new ArrayList<>();
 		List<String> approvedMods = ConfigManager.getMainConfig().getList("approved_client_mods");
 		if(approvedMods != null && !approvedMods.isEmpty()) {
-			for(ModSkeleton serverMod : StarLoader.starMods) approvedMods.add(String.valueOf(serverMod.getSmdResourceId()));
+			for(ModSkeleton serverMod : StarLoader.starMods)
+				approvedMods.add(String.valueOf(serverMod.getSmdResourceId()));
 			for(int modId : mods) {
 				String mod = String.valueOf(modId);
 				if(!approvedMods.contains(mod)) illegalMods.add(modId);

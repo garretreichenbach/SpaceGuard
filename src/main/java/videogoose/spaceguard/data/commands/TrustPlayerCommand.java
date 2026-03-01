@@ -1,15 +1,13 @@
-package thederpgamer.spaceguard.data.commands;
+package videogoose.spaceguard.data.commands;
 
 import api.mod.StarMod;
 import api.mod.config.PersistentObjectUtil;
 import api.utils.game.PlayerUtils;
 import api.utils.game.chat.CommandInterface;
 import org.schema.game.common.data.player.PlayerState;
-import thederpgamer.spaceguard.SpaceGuard;
-import thederpgamer.spaceguard.data.PlayerData;
-import thederpgamer.spaceguard.manager.SecurityManager;
-
-import javax.annotation.Nullable;
+import videogoose.spaceguard.SpaceGuard;
+import videogoose.spaceguard.data.PlayerData;
+import videogoose.spaceguard.manager.SecurityManager;
 
 public class TrustPlayerCommand implements CommandInterface {
 	@Override
@@ -24,9 +22,7 @@ public class TrustPlayerCommand implements CommandInterface {
 
 	@Override
 	public String getDescription() {
-		return "Sets the specified player as trusted, and will exempt them from a specific security check.\n" +
-				"- /%COMMAND% <player> <true|false>: Sets whether the player is trusted and exempted from all security checks.\n" +
-				"- /%COMMAND% <player> <alt|vpn|proxy|tor> <true|false>: Sets whether teh player is trusted and exempted from the specified security check.";
+		return "Sets the specified player as trusted, and will exempt them from a specific security check.\n" + "- /%COMMAND% <player> <true|false>: Sets whether the player is trusted and exempted from all security checks.\n" + "- /%COMMAND% <player> <alt|vpn|proxy|tor> <true|false>: Sets whether teh player is trusted and exempted from the specified security check.";
 	}
 
 	@Override
@@ -39,7 +35,8 @@ public class TrustPlayerCommand implements CommandInterface {
 		if(args != null && args.length >= 2) {
 			try {
 				PlayerData playerData = SecurityManager.getPlayer(args[0]);
-				if(playerData == null) PlayerUtils.sendMessage(sender, "[ERROR]: Player \"" + args[0] + "\" not found.");
+				if(playerData == null)
+					PlayerUtils.sendMessage(sender, "[ERROR]: Player \"" + args[0] + "\" not found.");
 				else {
 					if(args.length == 2) {
 						boolean trusted = Boolean.parseBoolean(args[1]);
@@ -66,7 +63,8 @@ public class TrustPlayerCommand implements CommandInterface {
 								PlayerUtils.sendMessage(sender, "[ERROR]: Invalid security check type \"" + checkType + "\"");
 								return false;
 						}
-						PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());						PlayerUtils.sendMessage(sender, "Player \"" + playerData.getPlayerName() + "\" is now " + (trusted ? "trusted" : "untrusted") + " for security check \"" + checkType + "\"");
+						PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
+						PlayerUtils.sendMessage(sender, "Player \"" + playerData.getPlayerName() + "\" is now " + (trusted ? "trusted" : "untrusted") + " for security check \"" + checkType + "\"");
 						return true;
 					}
 				}
@@ -79,7 +77,7 @@ public class TrustPlayerCommand implements CommandInterface {
 	}
 
 	@Override
-	public void serverAction(@Nullable PlayerState sender, String[] args) {
+	public void serverAction(PlayerState sender, String[] args) {
 
 	}
 

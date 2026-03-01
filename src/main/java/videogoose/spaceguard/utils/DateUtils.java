@@ -1,4 +1,4 @@
-package thederpgamer.spaceguard.utils;
+package videogoose.spaceguard.utils;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;

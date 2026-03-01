@@ -1,16 +1,16 @@
-package thederpgamer.spaceguard.manager;
+package videogoose.spaceguard.manager;
 
 import api.listener.Listener;
 import api.listener.events.network.ClientLoginEvent;
 import api.mod.StarLoader;
 import org.schema.schine.network.commands.Login;
-import thederpgamer.spaceguard.SpaceGuard;
+import videogoose.spaceguard.SpaceGuard;
 
 import java.lang.reflect.Field;
 
-public final class EventManager {
+public class EventManager {
 
-	public static void initialize(final SpaceGuard instance) {
+	public static void initialize(SpaceGuard instance) {
 		StarLoader.registerListener(ClientLoginEvent.class, new Listener<ClientLoginEvent>() {
 			@Override
 			public void onEvent(ClientLoginEvent event) {

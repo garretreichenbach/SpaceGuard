@@ -1,7 +1,7 @@
-package thederpgamer.spaceguard.manager;
+package videogoose.spaceguard.manager;
 
 import api.network.packets.PacketUtil;
-import thederpgamer.spaceguard.networking.client.SendClientInfoToServer;
+import videogoose.spaceguard.networking.client.SendClientInfoToServer;
 
 public final class PacketManager {
 
