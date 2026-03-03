@@ -28,14 +28,45 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.PosixFilePermission;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public final class SecurityManager {
 
 	// Small in-memory cache for IP check results to avoid hitting the external API repeatedly.
 	private static final Map<String, CacheEntry> IP_CHECK_CACHE = new ConcurrentHashMap<>();
 	private static final long IP_CHECK_TTL_MS = 10 * 60 * 1000; // 10 minutes
+	// Single scheduled executor for delayed client tasks
+	private static final ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor(r -> {
+		Thread t = new Thread(r, "SpaceGuard-Scheduler");
+		t.setDaemon(true);
+		return t;
+	});
+
+	public static List<Integer> approveMods(Set<Integer> mods) {
+		List<Integer> illegalMods = new ArrayList<>();
+		List<String> configuredApproved = ConfigManager.getMainConfig().getList("approved_client_mods");
+		if(configuredApproved != null && !configuredApproved.isEmpty()) {
+			// Build a local, mutable set that contains the configured approved mods and server-installed mod IDs.
+			Set<String> approvedMods = new HashSet<>(configuredApproved);
+			for(ModSkeleton serverMod : StarLoader.starMods) {
+				approvedMods.add(String.valueOf(serverMod.getSmdResourceId()));
+			}
+			for(int modId : mods) {
+				String mod = String.valueOf(modId);
+				if(!approvedMods.contains(mod)) {
+					illegalMods.add(modId);
+				}
+			}
+		} else {
+			SpaceGuard.getInstance().logWarning("Approved client mods list is null or empty in config, so we can't detect illegal client mods!");
+		}
+		return illegalMods;
+	}
 
 	public static Login.LoginCode getByName(String name) {
 		for(Login.LoginCode code : Login.LoginCode.values()) {
@@ -44,6 +75,12 @@ public final class SecurityManager {
 			}
 		}
 		return null;
+	}
+
+	/** Returns the login code int for the given name, falling back to ERROR_YOU_ARE_BANNED if the name is not found. */
+	private static int getCode(String name) {
+		Login.LoginCode code = getByName(name);
+		return code != null ? code.code : Login.LoginCode.ERROR_YOU_ARE_BANNED.code;
 	}
 
 	public static boolean checkIfPlayerIsBanned(PlayerData playerData) {
@@ -106,13 +143,13 @@ public final class SecurityManager {
 				boolean[] vpnData = checkIP(ip);
 				if(vpnData != null) {
 					if(vpnData[0] && ConfigManager.getMainConfig().getBoolean("block_vpn") && !playerData.isTrusted(PlayerData.TRUSTED_VPN)) {
-						return getByName("ERROR_VPN").code;
+						return getCode("ERROR_VPN");
 					}
 					if(vpnData[1] && ConfigManager.getMainConfig().getBoolean("block_proxy") && !playerData.isTrusted(PlayerData.TRUSTED_PROXY)) {
-						return getByName("ERROR_PROXY").code;
+						return getCode("ERROR_PROXY");
 					}
 					if(vpnData[2] && ConfigManager.getMainConfig().getBoolean("block_tor") && !playerData.isTrusted(PlayerData.TRUSTED_TOR)) {
-						return getByName("ERROR_TOR").code;
+						return getCode("ERROR_TOR");
 					}
 				}
 			}
@@ -125,7 +162,7 @@ public final class SecurityManager {
 					player.addAlt(playerData.getPlayerName());
 					playerData.addAlt(player.getPlayerName());
 					PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
-					return getByName("ERROR_ALT").code;
+					return getCode("ERROR_ALT");
 				}
 			}
 		}
@@ -224,20 +261,6 @@ public final class SecurityManager {
 			}
 		}
 		return PlayerData.createDefault(client);
-	}
-
-	public static void initializeClient() {
-		(new Thread(() -> {
-			try {
-				Thread.sleep(5000);
-				sendClientInfoToServer();
-			} catch(InterruptedException exception) {
-				Thread.currentThread().interrupt();
-				SpaceGuard.getInstance().logException("An error occurred while initializing client", exception);
-			} catch(Throwable throwable) {
-				SpaceGuard.getInstance().logWarning("An error occurred while initializing client: " + throwable);
-			}
-		})).start();
 	}
 
 	private static HashSet<PlayerData> getPlayersWithMatchingData(PlayerData playerData) {
@@ -363,26 +386,49 @@ public final class SecurityManager {
 	}
 
 	private static byte[] getHardwareInfo() {
+		// Opt-in: do not collect hardware fingerprint unless explicitly enabled in config
 		try {
-			return getHardwareInfoFromOSHI();
-		} catch(LinkageError | RuntimeException exception) {
-			SpaceGuard.getInstance().logWarning("OSHI hardware probe unavailable, using fallback fingerprint method: " + exception);
+			boolean enabled = false;
+			try {
+				enabled = ConfigManager.getMainConfig().getBoolean("collect_hardware_fingerprint");
+			} catch(Exception ignored) {
+			}
+			if(!enabled) {
+				SpaceGuard.getInstance().logInfo("Hardware fingerprinting disabled by config; not collecting hardware info.");
+				return null;
+			}
+			byte[] raw;
+			try {
+				raw = getHardwareInfoFromOSHI();
+			} catch(LinkageError | RuntimeException exception) {
+				SpaceGuard.getInstance().logWarning("OSHI hardware probe unavailable, using fallback fingerprint method: " + exception);
+				raw = getHardwareInfoFallback();
+			}
+			if(raw == null || raw.length == 0) {
+				return null;
+			}
+			// Compute one-way SHA-256 hash of the hardware fingerprint; do not send raw identifiers
+			try {
+				return MessageDigest.getInstance("SHA-256").digest(raw);
+			} catch(NoSuchAlgorithmException e) {
+				SpaceGuard.getInstance().logException("SHA-256 not available for hardware hashing", e);
+				return null;
+			}
+		} catch(Exception exception) {
+			SpaceGuard.getInstance().logException("An error occurred while collecting hardware info", exception);
+			return null;
 		}
-		return getHardwareInfoFallback();
 	}
 
 	private static byte[] getHardwareInfoFromOSHI() {
-		SystemInfo systemInfo = new SystemInfo();
+		SystemInfo systemInfo = new oshi.SystemInfo();
 		OperatingSystem operatingSystem = systemInfo.getOperatingSystem();
 		HardwareAbstractionLayer hardware = systemInfo.getHardware();
 		String processorID = hardware.getProcessor().getProcessorIdentifier().getProcessorID();
 		String processorArch = hardware.getProcessor().getProcessorIdentifier().getMicroarchitecture();
 		int processors = hardware.getProcessor().getLogicalProcessorCount();
 		String os = operatingSystem.getFamily();
-//		String serialNumber = hardware.getComputerSystem().getSerialNumber(); Supposedly can cause issues with Linux/FreeBSD if not run as root
 		String hardwareUUID = hardware.getComputerSystem().getHardwareUUID();
-//		String userName = System.getProperty("user.name");
-//		String userHome = System.getProperty("user.home");
 		String firmware = hardware.getComputerSystem().getFirmware().getName();
 		return (processorID + processorArch + processors + os + hardwareUUID + firmware).getBytes(StandardCharsets.UTF_8);
 	}
@@ -407,49 +453,36 @@ public final class SecurityManager {
 		} catch(SocketException exception) {
 			SpaceGuard.getInstance().logException("An error occurred while getting MAC address", exception);
 		}
-
 		try {
 			String processorID = System.getenv("PROCESSOR_IDENTIFIER");
 			String processorArch = System.getenv("PROCESSOR_ARCHITECTURE");
 			int processors = Runtime.getRuntime().availableProcessors();
 			String os = System.getProperty("os.name");
 			String osArch = System.getProperty("os.arch");
-//			String osVersion = System.getProperty("os.version"); //This is changed by the system upon updating, so it's not a good idea to use it
-			String userName = System.getProperty("user.name"); //This technically can be changed by the user, but it's usually a pain in the ass to do so
-			String userHome = System.getProperty("user.home"); //This technically can be changed by the user, but it's usually a pain in the ass to do so
-			return (macAddresses + processorID + processorArch + processors + os + osArch + userName + userHome).getBytes(StandardCharsets.UTF_8);
+			return (macAddresses + processorID + processorArch + processors + os + osArch).getBytes(StandardCharsets.UTF_8);
 		} catch(Exception exception) {
-			SpaceGuard.getInstance().logException("An error occurred while sending hardware info to server", exception);
+			SpaceGuard.getInstance().logException("An error occurred while collecting fallback hardware info", exception);
 		}
 		return null;
 	}
 
-	public static List<Integer> approveMods(Set<Integer> mods) {
-		List<Integer> illegalMods = new ArrayList<>();
-		List<String> configuredApproved = ConfigManager.getMainConfig().getList("approved_client_mods");
-		if(configuredApproved != null && !configuredApproved.isEmpty()) {
-			// Build a local, mutable set that contains the configured approved mods and server-installed mod IDs.
-			Set<String> approvedMods = new HashSet<>(configuredApproved);
-			for(ModSkeleton serverMod : StarLoader.starMods) {
-				approvedMods.add(String.valueOf(serverMod.getSmdResourceId()));
+	public static void initializeClient() {
+		// Schedule the client info send after 5 seconds using a daemon scheduler to avoid raw threads
+		SCHEDULER.schedule(() -> {
+			try {
+				sendClientInfoToServer();
+			} catch(Exception e) {
+				SpaceGuard.getInstance().logException("An error occurred while initializing client", e);
+			} catch(Throwable t) {
+				SpaceGuard.getInstance().logWarning("An error occurred while initializing client: " + t);
 			}
-			for(int modId : mods) {
-				String mod = String.valueOf(modId);
-				if(!approvedMods.contains(mod)) {
-					illegalMods.add(modId);
-				}
-			}
-		} else {
-			SpaceGuard.getInstance().logWarning("Approved client mods list is null or empty in config, so we can't detect illegal client mods!");
-//			NoticeManager.addNotice(3, GroupManager.getStaffGroup(), "Approved client mods list is null or empty in config, so we can't detect illegal client mods!");
-		}
-		return illegalMods;
+		}, 5, TimeUnit.SECONDS);
 	}
 
 	public static void kickPlayer(String playerName, String reason) {
 		try {
 			PlayerState playerState = GameServer.getServerState().getPlayerFromName(playerName);
-			System.out.println("Kicking player " + playerName + " for reason: " + reason);
+			SpaceGuard.getInstance().logInfo("Kicking player " + playerName + " for reason: " + reason);
 			SpaceGuard.logDiscordMessage("Kicking player " + playerName + " for reason: " + reason);
 			GameServer.getServerState().getController().sendLogout(playerState.getClientId(), reason);
 			GameServer.getServerState().getController().unregister(playerState.getClientId());
