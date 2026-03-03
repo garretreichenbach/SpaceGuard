@@ -3,9 +3,6 @@ plugins {
 	id 'application'
 }
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
-
 def starmadeDirectory = project.property("starmade_root")
 def modName = project.property("mod_name")
 group = project.property('mod_org_id')
@@ -14,12 +11,18 @@ mainClassName = group + modName
 
 repositories {
 	mavenCentral()
+	maven {url "https://repo.spongepowered.org/repository/maven-public/"}
 }
 
 dependencies {
-	implementation(files(starmadeDirectory + "StarMade.jar"))
-	implementation(fileTree(dir: (starmadeDirectory + "lib"), include: "*.jar"))
+	compileOnly(files(starmadeDirectory + "StarMade.jar"))
+	compileOnly(fileTree(dir: (starmadeDirectory + "lib"), include: "*.jar"))
 	implementation 'com.github.oshi:oshi-core:6.6.4'
+	implementation 'net.java.dev.jna:jna:5.14.0'
+	implementation 'net.java.dev.jna:jna-platform:5.14.0'
+
+	compileOnly 'org.spongepowered:mixin:0.8.7'
+	annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 }
 
 compileJava.options.encoding = 'UTF-8'

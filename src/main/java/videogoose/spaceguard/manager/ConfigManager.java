@@ -8,12 +8,11 @@ public final class ConfigManager {
 	private static FileConfiguration mainConfig;
 	private static final String[] defaultMainConfig = {
 			"vpn_checker_api_key: <APY_KEY> # Get your API key from https://vpnapi.io/api-documentation",
-			"block_vpn: true # Block VPN connections",
-			"block_proxy: true # Block proxy connections",
-			"block_tor: true # Block TOR connections",
+			"block_vpn: false # Block VPN connections",
+			"block_proxy: false # Block proxy connections",
 			"block_alts: true # Block known alt accounts",
 			"discord_webhook_url: <WEBHOOK_URL> # Webhook URL to send Discord notifications to a staff only channel. Leave blank to disable.",
-			"approved_client_mods: [8366, 8054, 8219, 8324, 8215] # List of approved client mods. These numbers are mod ids and are the 4 digits at the end of the URL for a mod page on the StarMade Dock. Leave blank to disable.",
+			"approved_client_mods: [] # List of approved client mods. These numbers are mod ids and are the 4 digits at the end of the URL for a mod page on the StarMade Dock. Leave blank to disable.",
 	};
 
 	public static void initialize(SpaceGuard instance) {

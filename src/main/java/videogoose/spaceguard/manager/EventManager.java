@@ -6,45 +6,24 @@ import api.mod.StarLoader;
 import org.schema.schine.network.commands.Login;
 import videogoose.spaceguard.SpaceGuard;
 
-import java.lang.reflect.Field;
-
 public class EventManager {
 
 	public static void initialize(SpaceGuard instance) {
 		StarLoader.registerListener(ClientLoginEvent.class, new Listener<ClientLoginEvent>() {
 			@Override
 			public void onEvent(ClientLoginEvent event) {
-				try {
-					int reason = SecurityManager.checkPlayer(SecurityManager.getPlayer(event.getRegisteredClientOnServer()));
-					if(reason != -1) {
-						instance.logWarning("Player " + event.getPlayerName() + " was denied access to the server for the following reason:\n" + reason);
-						Field loginCodeField = event.getLoginRequest().getClass().getDeclaredField("returnCode");
-						loginCodeField.setAccessible(true);
-						loginCodeField.set(event.getLoginRequest(), reason);
-						switch(Login.LoginCode.getById(reason)) {
-							case ERROR_YOU_ARE_BANNED:
-								SecurityManager.kickPlayer(event.getPlayerName(), "You are banned from this server.");
-								break;
-							case ERROR_VPN:
-								SecurityManager.kickPlayer(event.getPlayerName(), "VPN usage is not allowed on this server.");
-								break;
-							case ERROR_PROXY:
-								SecurityManager.kickPlayer(event.getPlayerName(), "Proxy usage is not allowed on this server.");
-								break;
-							case ERROR_TOR:
-								SecurityManager.kickPlayer(event.getPlayerName(), "TOR usage is not allowed on this server.");
-								break;
-							case ERROR_NO_ALTS:
-								SecurityManager.kickPlayer(event.getPlayerName(), "Alt accounts are not allowed on this server.");
-								break;
-							default:
-								SecurityManager.kickPlayer(event.getPlayerName(), "You were denied access to the server for an unknown reason.");
-								break;
+				int reason = SecurityManager.checkPlayer(SecurityManager.getPlayer(event.getRegisteredClientOnServer()));
+				if(reason < 0) {
+					Login.LoginCode code = Login.LoginCode.getById(reason);
+					(new Thread(() -> {
+						try {
+							Thread.sleep(2000);
+							SecurityManager.kickPlayer(event.getPlayerName(), code.msg);
+						} catch(InterruptedException exception) {
+							exception.printStackTrace();
+							SecurityManager.kickPlayer(event.getPlayerName(), code.msg);
 						}
-					}
-
-				} catch(Exception exception) {
-					instance.logException("An error occurred while checking IP for " + event.getPlayerName(), exception);
+					})).start();
 				}
 			}
 		}, instance);

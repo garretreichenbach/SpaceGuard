@@ -21,7 +21,8 @@ public final class SendClientInfoToServer extends Packet {
 		this.mods = mods;
 	}
 
-	public SendClientInfoToServer() {}
+	public SendClientInfoToServer() {
+	}
 
 	@Override
 	public void readPacketData(PacketReadBuffer packetReadBuffer) throws IOException {
@@ -43,7 +44,10 @@ public final class SendClientInfoToServer extends Packet {
 	@Override
 	public void processPacketOnServer(PlayerState playerState) {
 		List<Integer> illegalMods = SecurityManager.approveMods(mods);
-		if(illegalMods.isEmpty()) SecurityManager.assignUniqueID(playerState, data);
-		else SecurityManager.kickPlayerForIllegalMods(playerState, illegalMods);
+		if(illegalMods.isEmpty()) {
+			SecurityManager.assignUniqueID(playerState, data);
+		} else {
+			SecurityManager.kickPlayer(playerState.getName(), "You have the following illegal mods installed: " + mods);
+		}
 	}
 }
