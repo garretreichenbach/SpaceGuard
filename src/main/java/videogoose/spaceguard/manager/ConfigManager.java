@@ -17,7 +17,7 @@ public final class ConfigManager {
 			"block_proxy: false # Block proxy connections",
 			"block_alts: true # Block known alt accounts",
 			"discord_webhook_url: <WEBHOOK_URL> # Webhook URL to send Discord notifications to a staff only channel. Leave blank to disable.",
-			"approved_client_mods: [8366, 8054, 8219, 8324, 8215] # List of approved client mods. These numbers are mod ids and are the 4 digits at the end of the URL for a mod page on the StarMade Dock. Leave blank to disable.",
+			"approved_client_mods: # List of approved client mods. These numbers are mod ids and are the 4 digits at the end of the URL for a mod page on the StarMade Dock. Leave blank to disable.",
 			"collect_hardware_fingerprint: false # Opt-in: collect and send a one-way hardware fingerprint to help detect alts.",
 			"security_alerts_enabled: false # Send security event notifications to a Discord channel via webhook.",
 			"security_alert_webhook_url: <WEBHOOK_URL> # Separate webhook URL for security alerts (e.g. a private staff channel). Leave blank to disable.",
