@@ -13,7 +13,7 @@ public class EventManager {
 			@Override
 			public void onEvent(ClientLoginEvent event) {
 				int reason = SecurityManager.checkPlayer(SecurityManager.getPlayer(event.getRegisteredClientOnServer()));
-				if(reason < 0) {
+				if(reason != -1) {
 					Login.LoginCode code = Login.LoginCode.getById(reason);
 					(new Thread(() -> {
 						try {
