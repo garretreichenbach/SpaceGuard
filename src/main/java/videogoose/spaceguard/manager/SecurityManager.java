@@ -47,26 +47,70 @@ public final class SecurityManager {
 		return t;
 	});
 
-	public static List<Integer> approveMods(Set<Integer> mods) {
+	public static List<Integer> approveMods(Map<Integer, String> clientMods) {
 		List<Integer> illegalMods = new ArrayList<>();
 		List<String> configuredApproved = ConfigManager.getMainConfig().getList("approved_client_mods");
 		if(configuredApproved != null && !configuredApproved.isEmpty()) {
-			// Build a local, mutable set that contains the configured approved mods and server-installed mod IDs.
-			Set<String> approvedMods = new HashSet<>(configuredApproved);
+			// Build a map of server mod id -> ModSkeleton for name + hash verification
+			Map<Integer, ModSkeleton> serverMods = new HashMap<>();
 			for(ModSkeleton serverMod : StarLoader.starMods) {
-				approvedMods.add(String.valueOf(serverMod.getSmdResourceId()));
+				serverMods.put(serverMod.getSmdResourceId(), serverMod);
 			}
-			for(int modId : mods) {
-				String mod = String.valueOf(modId);
-				if(!approvedMods.contains(mod)) {
+			// Build local approved ID set (config list + all server mod IDs)
+			Set<String> approvedIds = new HashSet<>(configuredApproved);
+			for(Integer id : serverMods.keySet()) {
+				approvedIds.add(String.valueOf(id));
+			}
+			for(Map.Entry<Integer, String> entry : clientMods.entrySet()) {
+				int modId = entry.getKey();
+				// Value is "name:sha256hex"
+				String[] parts = entry.getValue().split(":", 2);
+				String clientName = parts[0];
+				String clientHash = parts.length > 1 ? parts[1] : "";
+
+				if(!approvedIds.contains(String.valueOf(modId))) {
+					// Unknown mod ID
 					illegalMods.add(modId);
+					continue;
 				}
+
+				ModSkeleton serverMod = serverMods.get(modId);
+				if(serverMod == null) {
+					// ID is in config approved list but not a server mod — no jar to verify against, accept
+					continue;
+				}
+
+				// Verify name
+				if(!serverMod.getName().equalsIgnoreCase(clientName)) {
+					SpaceGuard.getInstance().logWarning("Mod ID " + modId + " name mismatch: server=\""
+							+ serverMod.getName() + "\" client=\"" + clientName + "\" — possible spoofed mod ID.");
+					NoticeManager.securityWarning("Mod ID Spoof Attempt (Name)",
+							"Client reported name **" + clientName + "** for mod ID `" + modId
+							+ "` but server expects **" + serverMod.getName() + "**.");
+					illegalMods.add(modId);
+					continue;
+				}
+
+				// Verify jar hash — the server computes its own hash of the same jar
+				String serverHash = computeModJarHash(serverMod);
+				if(serverHash != null && !serverHash.isEmpty()) {
+					if(!serverHash.equalsIgnoreCase(clientHash)) {
+						SpaceGuard.getInstance().logWarning("Mod ID " + modId + " jar hash mismatch for \""
+								+ serverMod.getName() + "\" — client jar differs from server jar. Possible cheat mod spoofing a valid ID.");
+						NoticeManager.securityWarning("Mod ID Spoof Attempt (Hash)",
+								"Client jar hash for **" + serverMod.getName() + "** (ID `" + modId
+								+ "`) does not match server jar hash. Client may be using a cheat mod with a spoofed ID.");
+						illegalMods.add(modId);
+					}
+				}
+				// If serverHash is null we couldn't hash the server jar — skip hash check to avoid false positives
 			}
 		} else {
 			SpaceGuard.getInstance().logWarning("Approved client mods list is null or empty in config, so we can't detect illegal client mods!");
 		}
 		return illegalMods;
 	}
+
 
 	public static Login.LoginCode getByName(String name) {
 		for(Login.LoginCode code : Login.LoginCode.values()) {
@@ -142,13 +186,23 @@ public final class SecurityManager {
 			if(!ip.contains("127.0.0.1") && !ip.contains("localhost")) {
 				boolean[] vpnData = checkIP(ip);
 				if(vpnData != null) {
-					if(vpnData[0] && ConfigManager.getMainConfig().getBoolean("block_vpn") && !playerData.isTrusted(PlayerData.TRUSTED_VPN)) {
+					boolean isVpn = vpnData[0];
+					boolean isProxy = vpnData[1];
+					boolean isTor = vpnData[2];
+					// Always log detection to Discord so staff know even if the player is trusted
+					if(isVpn || isProxy || isTor) {
+						NoticeManager.vpnDetected(playerData.getPlayerName(), ip, isVpn, isProxy, isTor);
+					}
+					if(isVpn && ConfigManager.getMainConfig().getBoolean("block_vpn") && !playerData.isTrusted(PlayerData.TRUSTED_VPN)) {
+						NoticeManager.loginBlocked(playerData.getPlayerName(), ip, "VPN detected");
 						return getCode("ERROR_VPN");
 					}
-					if(vpnData[1] && ConfigManager.getMainConfig().getBoolean("block_proxy") && !playerData.isTrusted(PlayerData.TRUSTED_PROXY)) {
+					if(isProxy && ConfigManager.getMainConfig().getBoolean("block_proxy") && !playerData.isTrusted(PlayerData.TRUSTED_PROXY)) {
+						NoticeManager.loginBlocked(playerData.getPlayerName(), ip, "Proxy detected");
 						return getCode("ERROR_PROXY");
 					}
-					if(vpnData[2] && ConfigManager.getMainConfig().getBoolean("block_tor") && !playerData.isTrusted(PlayerData.TRUSTED_TOR)) {
+					if(isTor && ConfigManager.getMainConfig().getBoolean("block_tor") && !playerData.isTrusted(PlayerData.TRUSTED_TOR)) {
+						NoticeManager.loginBlocked(playerData.getPlayerName(), ip, "Tor detected");
 						return getCode("ERROR_TOR");
 					}
 				}
@@ -162,6 +216,8 @@ public final class SecurityManager {
 					player.addAlt(playerData.getPlayerName());
 					playerData.addAlt(player.getPlayerName());
 					PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
+					NoticeManager.altDetected(playerData.getPlayerName(), player.getPlayerName());
+					NoticeManager.loginBlocked(playerData.getPlayerName(), playerData.getKnownIPs().isEmpty() ? "unknown" : playerData.getKnownIPs().iterator().next(), "Alt account of " + player.getPlayerName());
 					return getCode("ERROR_ALT");
 				}
 			}
@@ -295,13 +351,36 @@ public final class SecurityManager {
 
 	private static void sendClientInfoToServer() {
 		byte[] hardwareInfo = getHardwareInfo();
-		List<ModSkeleton> mods = StarLoader.starMods;
-		Set<Integer> modIds = new HashSet<>();
-		for(int i = 0; i < mods.size(); i++) {
-			modIds.add(i);
+		Map<Integer, String> modMap = new HashMap<>();
+		for(ModSkeleton mod : StarLoader.starMods) {
+			String hash = computeModJarHash(mod);
+			// Value format: "name:sha256hex" — both parts verified server-side
+			modMap.put(mod.getSmdResourceId(), mod.getName() + ":" + (hash != null ? hash : ""));
 		}
 		if(hardwareInfo != null) {
-			PacketUtil.sendPacketToServer(new SendClientInfoToServer(hardwareInfo, modIds));
+			PacketUtil.sendPacketToServer(new SendClientInfoToServer(hardwareInfo, modMap));
+		}
+	}
+
+	/**
+	 * Computes the SHA-256 hash of a mod's jar file.
+	 * The jar sits in the parent of the mod's resources folder (i.e. mods/ModName/../ModName.jar).
+	 * Returns a lowercase hex string, or null if the jar cannot be found or hashed.
+	 */
+	static String computeModJarHash(ModSkeleton mod) {
+		try {
+			java.io.File jarFile = mod.getJarFile();
+			if(jarFile == null || !jarFile.exists()) {
+				SpaceGuard.getInstance().logWarning("Jar file not found for mod " + mod.getName() + "; skipping hash check.");
+				return null;
+			}
+			byte[] digest = MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(jarFile.toPath()));
+			StringBuilder hex = new StringBuilder(digest.length * 2);
+			for(byte b : digest) hex.append(String.format("%02x", b));
+			return hex.toString();
+		} catch(Exception e) {
+			SpaceGuard.getInstance().logWarning("Could not compute jar hash for mod " + mod.getName() + ": " + e.getMessage());
+			return null;
 		}
 	}
 
@@ -322,6 +401,7 @@ public final class SecurityManager {
 			long id = raw & Long.MAX_VALUE;
 			playerData.addHardwareID(id);
 			PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
+			NoticeManager.hardwareIdAssigned(playerState.getName(), id);
 		} catch(Exception exception) {
 			SpaceGuard.getInstance().logException("An error occurred while assigning unique ID", exception);
 		}

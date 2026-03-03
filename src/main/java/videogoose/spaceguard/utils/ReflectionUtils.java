@@ -1,15 +1,36 @@
 package videogoose.spaceguard.utils;
 
-import java.lang.reflect.AccessibleObject;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
+import java.lang.reflect.*;
 import java.util.Arrays;
 
 /**
  * Utility class for reflection-based operations.
  */
 public class ReflectionUtils {
+
+	public static Object invokePrivateMethod(Object instance, String methodName, Class<?>[] paramTypes, Object... args) throws Exception {
+		Method method = instance.getClass().getDeclaredMethod(methodName, paramTypes);
+		method.setAccessible(true);
+		return method.invoke(instance, args);
+	}
+
+	public static Object invokePrivateStaticMethod(Class<?> clazz, String methodName, Class<?>[] paramTypes, Object... args) throws Exception {
+		Method method = clazz.getDeclaredMethod(methodName, paramTypes);
+		method.setAccessible(true);
+		return method.invoke(null, args);
+	}
+
+	public static Object getPrivateField(Class<?> clazz, Object instance, String fieldName) throws Exception {
+		Field field = clazz.getDeclaredField(fieldName);
+		field.setAccessible(true);
+		return field.get(instance);
+	}
+
+	public static void setPrivateField(Class<?> clazz, Object instance, String fieldName, Object value) throws Exception {
+		Field field = clazz.getDeclaredField(fieldName);
+		field.setAccessible(true);
+		field.set(instance, value);
+	}
 
 	/**
 	 * Injects a new enum value into the specified enum class.
@@ -34,7 +55,7 @@ public class ReflectionUtils {
 		}
 
 		// Create a new array with one more element - MUST be properly typed
-		Object newValuesObj = java.lang.reflect.Array.newInstance(enumClass, oldValues.length + 1);
+		Object newValuesObj = Array.newInstance(enumClass, oldValues.length + 1);
 		Object[] newValues = (Object[]) newValuesObj;
 		System.arraycopy(oldValues, 0, newValues, 0, oldValues.length);
 
