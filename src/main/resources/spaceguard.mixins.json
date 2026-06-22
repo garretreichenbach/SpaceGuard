@@ -2,12 +2,11 @@
   "required": true,
   "minVersion": "0.8.7",
   "package": "videogoose.spaceguard.mixin",
-  "compatibilityLevel": "JAVA_8",
+  "compatibilityLevel": "JAVA_21",
   "target": "@env(DEFAULT)",
   "mixins": [
     "AdminCommandQueueElementMixin",
-    "GameServerControllerMixin",
-    "LoginCodeMixin"
+    "GameServerControllerMixin"
   ],
   "client": [],
   "server": [],

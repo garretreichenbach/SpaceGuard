@@ -378,7 +378,43 @@ public final class DiscordWebhook {
 		}
 
 		private String quote(String string) {
-			return "\"" + string + "\"";
+			StringBuilder sb = new StringBuilder(string.length() + 2);
+			sb.append('"');
+			for(int i = 0; i < string.length(); i++) {
+				char c = string.charAt(i);
+				switch(c) {
+					case '"':
+						sb.append("\\\"");
+						break;
+					case '\\':
+						sb.append("\\\\");
+						break;
+					case '\n':
+						sb.append("\\n");
+						break;
+					case '\r':
+						sb.append("\\r");
+						break;
+					case '\t':
+						sb.append("\\t");
+						break;
+					case '\b':
+						sb.append("\\b");
+						break;
+					case '\f':
+						sb.append("\\f");
+						break;
+					default:
+						// Escape all other control characters as \\uXXXX to keep the payload valid JSON.
+						if(c < 0x20) {
+							sb.append(String.format("\\u%04x", (int) c));
+						} else {
+							sb.append(c);
+						}
+				}
+			}
+			sb.append('"');
+			return sb.toString();
 		}
 	}
 }

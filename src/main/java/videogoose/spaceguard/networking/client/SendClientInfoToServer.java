@@ -28,13 +28,26 @@ public final class SendClientInfoToServer extends Packet {
 	public SendClientInfoToServer() {
 	}
 
+	// Defensive caps — this packet is sent by (untrusted) clients, so reject absurd values
+	// rather than letting a malicious client drive unbounded allocation/work on the server.
+	private static final int MAX_MODS = 4096;
+	private static final int MAX_NAME_LENGTH = 1024;
+
 	@Override
 	public void readPacketData(PacketReadBuffer packetReadBuffer) throws IOException {
 		data = packetReadBuffer.readByteArray();
 		int size = packetReadBuffer.readInt();
+		if(size < 0 || size > MAX_MODS) {
+			throw new IOException("SendClientInfoToServer: illegal mod count " + size);
+		}
 		for(int i = 0; i < size; i++) {
 			int id = packetReadBuffer.readInt();
 			String name = packetReadBuffer.readString();
+			if(name == null) {
+				name = "";
+			} else if(name.length() > MAX_NAME_LENGTH) {
+				name = name.substring(0, MAX_NAME_LENGTH);
+			}
 			mods.put(id, name);
 		}
 	}

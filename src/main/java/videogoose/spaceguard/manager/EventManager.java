@@ -3,9 +3,9 @@ package videogoose.spaceguard.manager;
 import api.listener.Listener;
 import api.listener.events.network.ClientLoginEvent;
 import api.mod.StarLoader;
-import org.schema.schine.network.commands.Login;
 import videogoose.spaceguard.SpaceGuard;
 import videogoose.spaceguard.data.PlayerData;
+import videogoose.spaceguard.manager.SecurityManager.BlockReason;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -25,18 +25,17 @@ public class EventManager {
 			@Override
 			public void onEvent(ClientLoginEvent event) {
 				PlayerData playerData = SecurityManager.getPlayer(event.getRegisteredClientOnServer());
-				int reason = SecurityManager.checkPlayer(playerData);
+				BlockReason reason = SecurityManager.checkPlayer(playerData);
 
-				// reason == -1 means allowed; any other value is a block code
-				if(reason != -1) {
-					Login.LoginCode code = Login.LoginCode.getById(reason);
-					String msg = (code != null) ? code.msg : "You have been blocked from this server.";
+				// null means allowed; any other value is a block reason
+				if(reason != null) {
+					String msg = reason.getMessage();
 					String ip  = playerData.getKnownIPs().isEmpty()
 							? "unknown"
 							: playerData.getKnownIPs().iterator().next();
 
 					// Emit a notice for server bans (VPN/proxy/alt already emit their own notices in checkPlayer)
-					if(reason == Login.LoginCode.ERROR_YOU_ARE_BANNED.code) {
+					if(reason == BlockReason.BANNED) {
 						NoticeManager.loginBlocked(event.getPlayerName(), ip, "Account is banned");
 					}
 

@@ -12,7 +12,7 @@ public final class ConfigManager {
 
 	private static FileConfiguration mainConfig;
 	private static final String[] defaultMainConfig = {
-			"vpn_checker_api_key: <APY_KEY> # Get your API key from https://vpnapi.io/api-documentation",
+			"vpn_checker_api_key: <API_KEY> # Get your API key from https://vpnapi.io/api-documentation",
 			"block_vpn: false # Block VPN connections",
 			"block_proxy: false # Block proxy connections",
 			"block_alts: true # Block known alt accounts",

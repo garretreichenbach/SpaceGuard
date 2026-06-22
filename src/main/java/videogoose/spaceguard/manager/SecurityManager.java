@@ -11,7 +11,6 @@ import org.schema.game.server.data.GameServerState;
 import org.schema.game.server.data.PlayerAccountEntrySet;
 import org.schema.schine.network.RegisteredClientOnServer;
 import org.schema.schine.network.StateInterface;
-import org.schema.schine.network.commands.Login;
 import oshi.SystemInfo;
 import oshi.hardware.HardwareAbstractionLayer;
 import oshi.software.os.OperatingSystem;
@@ -112,19 +111,29 @@ public final class SecurityManager {
 	}
 
 
-	public static Login.LoginCode getByName(String name) {
-		for(Login.LoginCode code : Login.LoginCode.values()) {
-			if(code.name().equals(name)) {
-				return code;
-			}
-		}
-		return null;
-	}
+	/**
+	 * Reason a player is refused login. Each carries the message shown to the kicked client.
+	 * This replaces the old approach of injecting custom constants into the game's
+	 * {@code Login.LoginCode} enum via reflection/{@code Unsafe}, which is unreliable on
+	 * modern JVMs (Java 9+ module restrictions, removal of the field-modifier hack) — the
+	 * kick itself already takes a free-form message, so no enum injection is needed.
+	 */
+	public enum BlockReason {
+		BANNED("[SpaceGuard] You have been banned from this server."),
+		VPN("[SpaceGuard] VPN detected. Please disable your VPN to connect to this server."),
+		PROXY("[SpaceGuard] Proxy detected. Please disable your proxy to connect to this server."),
+		TOR("[SpaceGuard] Tor exit node detected. Please disable Tor to connect to this server."),
+		ALT("[SpaceGuard] No alternative accounts allowed. Please use your main account to connect to this server.");
 
-	/** Returns the login code int for the given name, falling back to ERROR_YOU_ARE_BANNED if the name is not found. */
-	private static int getCode(String name) {
-		Login.LoginCode code = getByName(name);
-		return code != null ? code.code : Login.LoginCode.ERROR_YOU_ARE_BANNED.code;
+		private final String message;
+
+		BlockReason(String message) {
+			this.message = message;
+		}
+
+		public String getMessage() {
+			return message;
+		}
 	}
 
 	public static boolean checkIfPlayerIsBanned(PlayerData playerData) {
@@ -167,18 +176,18 @@ public final class SecurityManager {
 	}
 
 	/**
-	 * Checks a player's data to see if they are allowed to log in
+	 * Checks a player's data to see if they are allowed to log in.
 	 *
 	 * @param playerData The player's data
-	 * @return -1 if the player can log in, otherwise returns a message explaining why they cannot
+	 * @return {@code null} if the player can log in, otherwise the {@link BlockReason} explaining why not
 	 */
-	public static int checkPlayer(PlayerData playerData) {
+	public static BlockReason checkPlayer(PlayerData playerData) {
 		if(checkIfPlayerIsBanned(playerData)) {
-			return Login.LoginCode.ERROR_YOU_ARE_BANNED.code;
+			return BlockReason.BANNED;
 		}
 
 		if(isAnyAltsAdmin(playerData)) {
-			return -1;
+			return null;
 		}
 
 		//Check for VPNs
@@ -195,34 +204,35 @@ public final class SecurityManager {
 					}
 					if(isVpn && ConfigManager.getMainConfig().getBoolean("block_vpn") && !playerData.isTrusted(PlayerData.TRUSTED_VPN)) {
 						NoticeManager.loginBlocked(playerData.getPlayerName(), ip, "VPN detected");
-						return getCode("ERROR_VPN");
+						return BlockReason.VPN;
 					}
 					if(isProxy && ConfigManager.getMainConfig().getBoolean("block_proxy") && !playerData.isTrusted(PlayerData.TRUSTED_PROXY)) {
 						NoticeManager.loginBlocked(playerData.getPlayerName(), ip, "Proxy detected");
-						return getCode("ERROR_PROXY");
+						return BlockReason.PROXY;
 					}
 					if(isTor && ConfigManager.getMainConfig().getBoolean("block_tor") && !playerData.isTrusted(PlayerData.TRUSTED_TOR)) {
 						NoticeManager.loginBlocked(playerData.getPlayerName(), ip, "Tor detected");
-						return getCode("ERROR_TOR");
+						return BlockReason.TOR;
 					}
 				}
 			}
 		}
 
 		if(ConfigManager.getMainConfig().getBoolean("block_alts") && !playerData.isTrusted(PlayerData.TRUSTED_ALT)) {
-			HashSet<PlayerData> matchingPlayers = getPlayersWithMatchingData(playerData);
-			if(matchingPlayers.size() > 1) {
-				for(PlayerData player : matchingPlayers) {
-					player.addAlt(playerData.getPlayerName());
-					playerData.addAlt(player.getPlayerName());
-					PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
-					NoticeManager.altDetected(playerData.getPlayerName(), player.getPlayerName());
-					NoticeManager.loginBlocked(playerData.getPlayerName(), playerData.getKnownIPs().isEmpty() ? "unknown" : playerData.getKnownIPs().iterator().next(), "Alt account of " + player.getPlayerName());
-					return getCode("ERROR_ALT");
+			for(PlayerData match : getPlayersWithMatchingData(playerData)) {
+				// Skip the player themselves — only a genuine *other* linked account counts as an alt.
+				if(match.getPlayerName().equals(playerData.getPlayerName())) {
+					continue;
 				}
+				match.addAlt(playerData.getPlayerName());
+				playerData.addAlt(match.getPlayerName());
+				PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
+				NoticeManager.altDetected(playerData.getPlayerName(), match.getPlayerName());
+				NoticeManager.loginBlocked(playerData.getPlayerName(), playerData.getKnownIPs().isEmpty() ? "unknown" : playerData.getKnownIPs().iterator().next(), "Alt account of " + match.getPlayerName());
+				return BlockReason.ALT;
 			}
 		}
-		return -1;
+		return null;
 	}
 
 	private static boolean[] checkIP(String ip) {
@@ -241,7 +251,7 @@ public final class SecurityManager {
 			}
 
 			// Build request URL safely
-			String encodedIp = URLEncoder.encode(ip, StandardCharsets.UTF_8.name());
+			String encodedIp = URLEncoder.encode(ip, StandardCharsets.UTF_8);
 			String urlStr = "https://vpnapi.io/api/" + encodedIp + "?key=" + apiKey;
 			HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
 			conn.setConnectTimeout(3000);
@@ -319,31 +329,47 @@ public final class SecurityManager {
 		return PlayerData.createDefault(client);
 	}
 
+	/**
+	 * Finds players linked to the given player by a <em>strong</em> identifier: a shared
+	 * hardware fingerprint, or an explicitly-recorded known-alt relationship.
+	 *
+	 * <p>IP addresses are deliberately <strong>not</strong> used for matching. Many unrelated,
+	 * legitimate players share a single IP — carrier-grade NAT, households, dorms, schools,
+	 * public Wi-Fi, and VPN/proxy exit nodes all collapse many people onto one address. Treating
+	 * a shared IP as proof of an alt caused innocent players to be flagged as alts and swept up
+	 * in global-ban cascades. Hardware fingerprints (when {@code collect_hardware_fingerprint} is
+	 * enabled) and admin-confirmed alt links are the only signals strong enough to link accounts.
+	 */
 	private static HashSet<PlayerData> getPlayersWithMatchingData(PlayerData playerData) {
 		HashSet<PlayerData> matchingPlayers = new HashSet<>();
+		String thisName = playerData.getPlayerName();
 		for(PlayerData pd : getAllPlayers()) {
-			Set<Long> hardwareIDs = pd.getHardwareIDs();
-			Set<String> knownIPs = pd.getKnownIPs();
-			Set<String> knownAlts = pd.getKnownAlts();
-			for(long hardwareID : hardwareIDs) {
+			boolean matches = false;
+
+			// Strong signal #1: a shared hardware fingerprint.
+			for(long hardwareID : pd.getHardwareIDs()) {
 				if(playerData.getHardwareIDs().contains(hardwareID)) {
-					matchingPlayers.add(pd);
+					matches = true;
 					break;
 				}
 			}
 
-			for(String ip : knownIPs) {
-				if(playerData.getKnownIPs().contains(ip)) {
-					matchingPlayers.add(pd);
-					break;
+			// Strong signal #2: an explicit known-alt relationship (either direction, or a shared alt).
+			if(!matches) {
+				if(pd.getKnownAlts().contains(thisName) || playerData.getKnownAlts().contains(pd.getPlayerName())) {
+					matches = true;
+				} else {
+					for(String alt : pd.getKnownAlts()) {
+						if(playerData.getKnownAlts().contains(alt)) {
+							matches = true;
+							break;
+						}
+					}
 				}
 			}
 
-			for(String alt : knownAlts) {
-				if(playerData.getKnownAlts().contains(alt)) {
-					matchingPlayers.add(pd);
-					break;
-				}
+			if(matches) {
+				matchingPlayers.add(pd);
 			}
 		}
 		return matchingPlayers;
@@ -408,7 +434,12 @@ public final class SecurityManager {
 	}
 
 	private static String getServerUUID(StateInterface stateInterface) {
-		assert stateInterface instanceof GameServerState : new IllegalAccessException("Server UUID can only be retrieved on the server");
+		// Hard guard (not an assert, which is disabled at runtime): the server secret must never be
+		// generated or read on a client.
+		if(!(stateInterface instanceof GameServerState)) {
+			SpaceGuard.getInstance().logWarning("Refusing to access server UUID off the server.");
+			return null;
+		}
 		Path path = Paths.get(DataUtils.getWorldDataPath(), "server_secret.smdat");
 		try {
 			if(Files.exists(path)) {

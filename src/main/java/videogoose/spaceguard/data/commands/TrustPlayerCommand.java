@@ -41,6 +41,7 @@ public class TrustPlayerCommand implements CommandInterface {
 					if(args.length == 2) {
 						boolean trusted = Boolean.parseBoolean(args[1]);
 						playerData.setTrustedAll(trusted);
+						PersistentObjectUtil.save(SpaceGuard.getInstance().getSkeleton());
 						PlayerUtils.sendMessage(sender, "Player \"" + playerData.getPlayerName() + "\" is now " + (trusted ? "trusted" : "untrusted"));
 						return true;
 					} else if(args.length == 3) {
